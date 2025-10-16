@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Historique - Clear Terms</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../output.css">
+</head>
+<body class="min-h-screen overflow-y-scroll bg-slate-100">
+  <!-- Header -->
+  <div class="sticky top-0 z-10 px-6 py-5 text-white shadow-md bg-gradient-to-br from-primary-500 to-secondary-500">
+    <div class="flex items-center justify-between max-w-5xl mx-auto">
+      <div>
+        <h1 class="mb-1 text-xl font-semibold" data-i18n="headerTitle">Clear Terms</h1>
+        <p class="text-sm opacity-90">
+          <span data-i18n="historyTitle">Historique des analyses</span>
+          <span id="reportCount" class="ml-1">• 0 rapport</span>
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <button id="exportCsvButton" class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-lg bg-white/10 hover:bg-white/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span data-i18n="exportCsv">Export CSV</span>
+        </button>
+        <button id="exportJsonButton" class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-lg bg-white/10 hover:bg-white/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span data-i18n="exportJson">Export JSON</span>
+        </button>
+        <button id="clearHistoryButton" class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-lg bg-white/10 hover:bg-white/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span data-i18n="clearHistory">Supprimer l'historique</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="max-w-5xl px-6 py-8 mx-auto">
+    <!-- Search and Filters -->
+    <div class="grid grid-cols-1 gap-3 mb-6 md:grid-cols-3">
+      <!-- Search Bar -->
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Rechercher par nom de site..."
+        data-i18n-placeholder="searchPlaceholder"
+        class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+      >
+
+      <!-- Filter by Score -->
+      <select
+        id="filterScore"
+        class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+      >
+        <option value="all" selected data-i18n="allScores">Tous les scores</option>
+        <option value="A">Score A</option>
+        <option value="B">Score B</option>
+        <option value="C">Score C</option>
+        <option value="D">Score D</option>
+        <option value="E">Score E</option>
+      </select>
+
+      <!-- Sort By -->
+      <select
+        id="sortBy"
+        class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+      >
+        <option value="date-recent" selected data-i18n="sortDateRecent">Date (récent)</option>
+        <option value="date-old" data-i18n="sortDateOld">Date (ancien)</option>
+        <option value="score-ae" data-i18n="sortScoreAE">Score (A→E)</option>
+        <option value="score-ea" data-i18n="sortScoreEA">Score (E→A)</option>
+        <option value="name-az" data-i18n="sortNameAZ">Nom (A→Z)</option>
+        <option value="name-za" data-i18n="sortNameZA">Nom (Z→A)</option>
+      </select>
+    </div>
+
+    <!-- Reports List -->
+    <div id="reportsList" class="space-y-4">
+      <!-- Les cards seront générées ici par JavaScript -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden py-16 text-center">
+      <div class="mb-4 text-6xl">📋</div>
+      <h2 class="mb-2 text-xl font-semibold text-gray-700" data-i18n="emptyHistory">
+        Votre historique est vide. Lancez une analyse pour commencer !
+      </h2>
+      <p class="text-gray-500" data-i18n="noReports">Aucun rapport trouvé</p>
+    </div>
+
+    <!-- No Results State (for filtered results) -->
+    <div id="noResultsState" class="hidden py-16 text-center">
+      <div class="mb-4 text-6xl">🔍</div>
+      <h2 class="mb-2 text-xl font-semibold text-gray-700" data-i18n="noReports">
+        Aucun rapport trouvé
+      </h2>
+      <p class="text-gray-500">Essayez de modifier vos filtres de recherche</p>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../../lib/dompurify.min.js"></script>
+  <script src="../../lang/i18n.js"></script>
+  <script src="../../utils/grading.js"></script>
+  <script src="../../utils/translations.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# Environment variables
+backend/.env
+.env
+
+# AI prompts & schemas (sensibles)
+backend/etc/secrets/prompt-template.md
+backend/schema.json
+
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+frontend/error/error-testing-guide.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build outputs
+dist/
+build/
+frontend/output.css
+
+# Logs
+*.log
+npm-debug.log*
+backend/schema.json
+
+# Claude
+.claude
+
+# Security
+SECURITY.md
+DEPLOYMENT.md

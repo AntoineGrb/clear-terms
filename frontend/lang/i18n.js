@@ -84,6 +84,40 @@ const translations = {
     weeksAgo: "semaines",
     monthsAgo: "mois",
 
+    // Crédits et paiement
+    creditsScansRemaining: "Scans restants :",
+    buyCredits: "Acheter",
+
+    // Page de paiement
+    billingTitle: "Acheter des crédits pour scanner les documents",
+    billingCurrentCredits: "Scans restants",
+    billingIntroTitle: "Pourquoi acheter des crédits ?",
+    billingFeature1: "Analyses IA instantanées de toutes les CGU et Politiques de Confidentialité",
+    billingFeature2: "Scores détaillés par catégorie (données, droits, sécurité...)",
+    billingFeature3: "Historique de vos analyses",
+    billingFeature4: "Détection automatique avec toast",
+    billingFeature5: "Export CSV/JSON de vos rapports",
+    billingIntroNote: "Les 20 premiers scans étaient gratuits pour découvrir l'outil. Les crédits permettent d'amortir les coûts de fonctionnement de l'intelligence artificielle. Merci de votre confiance !",
+
+    billingPlanStandardTitle: "Pack Standard",
+    billingPlanStandardDesc: "Pour une utilisation ponctuelle",
+    billingPlanComfortTitle: "Pack Confort",
+    billingPlanComfortDesc: "Meilleur rapport qualité/prix",
+    billingPlanProTitle: "Pack Pro",
+    billingPlanProDesc: "Pour une utilisation intensive",
+    billingPopular: "Populaire",
+    buyNow: "Acheter maintenant",
+
+    billingFaqTitle: "Questions fréquentes",
+    billingFaq1Q: "Les crédits expirent-ils ?",
+    billingFaq1A: "Non, vos crédits sont associés à votre navigateur et n'expirent pas.",
+    billingFaq2Q: "Que se passe-t-il si une analyse échoue ?",
+    billingFaq2A: "Si une analyse échoue pour une raison technique, le crédit ne vous est pas décompté.",
+    billingFaq3Q: "Les analyses déjà effectuées consomment-elles des crédits ?",
+    billingFaq3A: "Non ! Si une CGU a déjà été analysée, le rapport est instantané et gratuit.",
+
+    backToApp: "Fermer la page",
+
     // Paramètres
     settings: "Paramètres",
     languageLabel: "Langue de l'interface et des rapports",
@@ -119,7 +153,12 @@ const translations = {
       privacyText: "Vos données ne sont jamais stockées de manière identifiable. L'analyse est effectuée en temps réel et les résultats sont mis en cache anonymement (par hash du contenu) pour optimiser les performances et réduire les coûts.",
 
       limitationsTitle: "Limitations importantes",
-      limitationsText: "Clear Terms n'est pas un conseil juridique et ne remplace pas l'avis d'un avocat qualifié. Les analyses peuvent contenir des erreurs ou des imprécisions. Consultez toujours le texte original et, si nécessaire, un professionnel du droit."
+      limitationsText: "Clear Terms n'est pas un conseil juridique et ne remplace pas l'avis d'un avocat qualifié. Les analyses peuvent contenir des erreurs ou des imprécisions. Consultez toujours le texte original et, si nécessaire, un professionnel du droit.",
+
+      pricingTitle: "Modèle économique",
+      pricingText1: "Les 20 premières analyses sont gratuites pour vous permettre de découvrir l'outil.",
+      pricingText2: "Au-delà, vous pouvez acheter des crédits d'analyse selon vos besoins. Ce modèle nous permet de maintenir un service de qualité tout en optimisant les coûts d'infrastructure IA.",
+      pricingText3: "Les analyses déjà effectuées par d'autres utilisateurs sont partagées anonymement (cache global), réduisant ainsi les coûts pour tout le monde."
     },
 
     // Page Conditions de Service
@@ -275,6 +314,40 @@ const translations = {
     weeksAgo: "weeks",
     monthsAgo: "months",
 
+    // Credits and billing
+    creditsScansRemaining: "Scans remaining:",
+    buyCredits: "Buy",
+
+    // Billing page
+    billingTitle: "Buy Analysis Credits",
+    billingCurrentCredits: "Remaining scans",
+    billingIntroTitle: "Why buy credits?",
+    billingFeature1: "Instant AI analysis of all Terms and Privacy Policies",
+    billingFeature2: "Detailed scores by category (data, rights, security...)",
+    billingFeature3: "History of your analyses",
+    billingFeature4: "Automatic detection with toast",
+    billingFeature5: "CSV/JSON export of your reports",
+    billingIntroNote: "The first 20 scans were free to explore the tool. The credits help cover the running costs of the artificial intelligence. Thank you for your trust!",
+
+    billingPlanStandardTitle: "Standard Pack",
+    billingPlanStandardDesc: "For occasional use",
+    billingPlanComfortTitle: "Comfort Pack",
+    billingPlanComfortDesc: "Best value for money",
+    billingPlanProTitle: "Pro Pack",
+    billingPlanProDesc: "For intensive use",
+    billingPopular: "Popular",
+    buyNow: "Buy now",
+
+    billingFaqTitle: "Frequently Asked Questions",
+    billingFaq1Q: "Do credits expire?",
+    billingFaq1A: "No, your credits are associated with your browser and never expire. Use them at your own pace.",
+    billingFaq2Q: "What happens if an analysis fails?",
+    billingFaq2A: "If an analysis fails for technical reasons, the credit is not deducted.",
+    billingFaq3Q: "Do cached analyses consume credits?",
+    billingFaq3A: "No! If a Terms page has already been analyzed, the report is instant and free.",
+
+    backToApp: "Close page",
+
     // Settings
     settings: "Settings",
     languageLabel: "Interface and report language",
@@ -310,7 +383,12 @@ const translations = {
       privacyText: "Your data is never stored in an identifiable manner. Analysis is performed in real-time and results are cached anonymously (by content hash) to optimize performance and reduce costs.",
 
       limitationsTitle: "Important Limitations",
-      limitationsText: "Clear Terms is not legal advice and does not replace the opinion of a qualified attorney. Analyses may contain errors or inaccuracies. Always consult the original text and, if necessary, a legal professional."
+      limitationsText: "Clear Terms is not legal advice and does not replace the opinion of a qualified attorney. Analyses may contain errors or inaccuracies. Always consult the original text and, if necessary, a legal professional.",
+
+      pricingTitle: "Business Model",
+      pricingText1: "The first 20 analyses are free to let you discover the tool.",
+      pricingText2: "Beyond that, you can buy analysis credits according to your needs. This model allows us to maintain a quality service while optimizing AI infrastructure costs.",
+      pricingText3: "Analyses already performed by other users are shared anonymously (global cache), reducing costs for everyone."
     },
 
     // Terms of Service page

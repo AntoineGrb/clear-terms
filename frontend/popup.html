@@ -102,6 +102,17 @@
       </div>
 
       <div class="space-y-4">
+        <!-- Section Crédits (en première position) -->
+        <div class="flex items-center justify-between pt-3">
+          <span class="text-sm text-gray-700">
+            <span data-i18n="creditsScansRemaining">Scans restants :</span>
+            <span class="font-semibold text-primary-600" id="remainingScans">20</span>
+          </span>
+          <button id="buyCreditsButton" class="px-3 py-2 text-xs font-medium text-white transition-colors rounded-md bg-primary-500 hover:bg-primary-600">
+            <span data-i18n="buyCredits">Acheter</span>
+          </button>
+        </div>
+
         <!-- Détection automatique -->
         <div class="pt-3 border-t border-gray-200">
           <label class="flex items-center cursor-pointer">
@@ -197,6 +208,19 @@
           <h3 class="mb-2 text-sm font-semibold text-gray-900" data-i18n="aboutContent.limitationsTitle">Limitations importantes</h3>
           <p class="text-xs leading-relaxed text-gray-700" data-i18n="aboutContent.limitationsText">
             Clear Terms n'est pas un conseil juridique et ne remplace pas l'avis d'un avocat qualifié. Les analyses peuvent contenir des erreurs ou des imprécisions. Consultez toujours le texte original et, si nécessaire, un professionnel du droit.
+          </p>
+        </section>
+
+        <section>
+          <h3 class="mb-2 text-sm font-semibold text-gray-900" data-i18n="aboutContent.pricingTitle">Modèle économique</h3>
+          <p class="text-xs leading-relaxed text-gray-700" data-i18n="aboutContent.pricingText1">
+            Les 20 premières analyses sont gratuites pour vous permettre de découvrir l'outil.
+          </p>
+          <p class="mt-2 text-xs leading-relaxed text-gray-700" data-i18n="aboutContent.pricingText2">
+            Au-delà, vous pouvez acheter des crédits d'analyse selon vos besoins. Ce modèle nous permet de maintenir un service de qualité tout en optimisant les coûts d'infrastructure IA.
+          </p>
+          <p class="mt-2 text-xs leading-relaxed text-gray-700" data-i18n="aboutContent.pricingText3">
+            Les analyses déjà effectuées par d'autres utilisateurs sont partagées anonymement (cache global), réduisant ainsi les coûts pour tout le monde.
           </p>
         </section>
       </div>

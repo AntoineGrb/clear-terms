@@ -10,9 +10,9 @@ const CONFIG = {
   PROD_URL: 'https://clear-terms.onrender.com',
 
   // Mode de fonctionnement (une seule des options à true)
-  FORCE_LOCAL: false,   // true = force localhost
-  FORCE_STAGING: false, // true = force staging
-  FORCE_PROD: false,    // true = force production
+  FORCE_LOCAL: true, 
+  FORCE_STAGING: false,
+  FORCE_PROD: false,  
   // Si les 3 sont false = auto-détection (dev/prod)
 
   // Paramètres polling

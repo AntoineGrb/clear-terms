@@ -171,6 +171,12 @@ document.getElementById('historyLink').addEventListener('click', (e) => {
   chrome.tabs.create({ url: chrome.runtime.getURL('pages/history/history.html') });
 });
 
+// Navigation vers la page de paiement
+document.getElementById('buyCreditsButton').addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.tabs.create({ url: chrome.runtime.getURL('pages/billing/billing.html') });
+});
+
 // ========================================
 // Paramètres
 // ========================================
@@ -235,6 +241,12 @@ chrome.storage.local.get(['lastReport'], async (result) => {
 
     const toastDuration = toastResult.toastDuration !== undefined ? toastResult.toastDuration : 5000;
     document.getElementById('toastDuration').value = toastDuration.toString();
+  });
+
+  // Charger et afficher les crédits restants
+  chrome.storage.local.get(['remainingScans'], (scanResult) => {
+    const remaining = scanResult.remainingScans !== undefined ? scanResult.remainingScans : 20;
+    document.getElementById('remainingScans').textContent = remaining;
   });
 
   // Vérifier si une analyse auto est en cours pour l'onglet actif

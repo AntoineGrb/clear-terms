@@ -6,7 +6,7 @@ const translations = {
   fr: {
     // Header
     headerTitle: "Clear Terms",
-    headerSubtitle: "Analyse IA des CGU et Politiques de Confidentialité",
+    headerSubtitle: "Analyse IA des conditions générales d'utilisation",
 
     // Boutons principaux
     analyzeButton: "Analyser la page active",
@@ -29,6 +29,8 @@ const translations = {
     errorInvalidResponse: "La réponse du serveur est invalide.",
     errorTooShort: "Le contenu de la page est trop court pour être analysé.",
     errorGeneric: "Une erreur inattendue est survenue.",
+    errorNoCredits: "Vos crédits sont épuisés. Achetez des crédits pour continuer à analyser.",
+    buyMoreCredits: "Acheter des crédits",
 
     // Rapport
     analyzedOn: "Analysé le",
@@ -123,13 +125,13 @@ const translations = {
     languageLabel: "Langue de l'interface et des rapports",
     languageHelp: "Les rapports seront générés dans cette langue",
     toastEnabled: "Activer la détection automatique",
-    toastEnabledHelp: "Affiche un toast lorsque des CGU sont détectées sur une page",
-    toastPositionLabel: "Position du toast",
+    toastEnabledHelp: "Lance une analyse et vous notifie automatiquement sur une page contenant des CGU",
+    toastPositionLabel: "Position du toast de notification",
     toastPositionBottomRight: "En bas à droite",
     toastPositionBottomLeft: "En bas à gauche",
     toastPositionTopRight: "En haut à droite",
     toastPositionTopLeft: "En haut à gauche",
-    toastDurationLabel: "Durée d'affichage (secondes)",
+    toastDurationLabel: "Durée d'affichage du toast (secondes)",
     toastDurationManual: "Manuel (cliquer pour fermer)",
 
     // Page À propos
@@ -158,7 +160,7 @@ const translations = {
       pricingTitle: "Modèle économique",
       pricingText1: "Les 20 premières analyses sont gratuites pour vous permettre de découvrir l'outil.",
       pricingText2: "Au-delà, vous pouvez acheter des crédits d'analyse selon vos besoins. Ce modèle nous permet de maintenir un service de qualité tout en optimisant les coûts d'infrastructure IA.",
-      pricingText3: "Les analyses déjà effectuées par d'autres utilisateurs sont partagées anonymement (cache global), réduisant ainsi les coûts pour tout le monde."
+      pricingText3: "Les analyses déjà effectuées et historisées ne génèrent pas de coûts supplémentaires."
     },
 
     // Page Conditions de Service
@@ -236,7 +238,7 @@ const translations = {
   en: {
     // Header
     headerTitle: "Clear Terms",
-    headerSubtitle: "AI Analysis of Terms and Privacy Policies",
+    headerSubtitle: "AI analysis of terms of service",
 
     // Main buttons
     analyzeButton: "Analyze active page",
@@ -259,6 +261,8 @@ const translations = {
     errorInvalidResponse: "Server response is invalid.",
     errorTooShort: "Page content is too short to analyze.",
     errorGeneric: "An unexpected error occurred.",
+    errorNoCredits: "Your credits are exhausted. Buy credits to continue analyzing.",
+    buyMoreCredits: "Buy credits",
 
     // Report
     analyzedOn: "Analyzed on",
@@ -353,13 +357,13 @@ const translations = {
     languageLabel: "Interface and report language",
     languageHelp: "Reports will be generated in this language",
     toastEnabled: "Enable automatic detection",
-    toastEnabledHelp: "Shows a toast when Terms are detected on a page",
-    toastPositionLabel: "Toast position",
+    toastEnabledHelp: "Starts an analysis and automatically notifies you on a page containing Terms",
+    toastPositionLabel: "Notification toast position",
     toastPositionBottomRight: "Bottom right",
     toastPositionBottomLeft: "Bottom left",
     toastPositionTopRight: "Top right",
     toastPositionTopLeft: "Top left",
-    toastDurationLabel: "Display duration (seconds)",
+    toastDurationLabel: "Notification toast display duration (seconds)",
     toastDurationManual: "Manual (click to close)",
 
     // About page
@@ -388,7 +392,7 @@ const translations = {
       pricingTitle: "Business Model",
       pricingText1: "The first 20 analyses are free to let you discover the tool.",
       pricingText2: "Beyond that, you can buy analysis credits according to your needs. This model allows us to maintain a quality service while optimizing AI infrastructure costs.",
-      pricingText3: "Analyses already performed by other users are shared anonymously (global cache), reducing costs for everyone."
+      pricingText3: "Analyses already performed and historized do not incur additional costs."
     },
 
     // Terms of Service page

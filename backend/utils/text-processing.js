@@ -40,6 +40,15 @@ function calculateUrlHash(url) {
 }
 
 /**
+ * Calcule un hash SHA-256 basé sur le contenu
+ * Utilisé pour détecter les doublons dans l'historique utilisateur
+ */
+function calculateContentHash(content) {
+  const cleanedContent = cleanText(content);
+  return crypto.createHash('sha256').update(cleanedContent).digest('hex');
+}
+
+/**
  * Nettoie le texte extrait (supprime espaces multiples, lignes vides, etc.)
  */
 function cleanText(text) {
@@ -50,5 +59,6 @@ function cleanText(text) {
 
 module.exports = {
   calculateUrlHash,
+  calculateContentHash,
   cleanText
 };

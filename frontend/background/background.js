@@ -1,7 +1,9 @@
 // Service Worker pour Clear Terms
-// Permet de consulter les logs et gérer les événements en arrière-plan
+// Permet de gérer les événements en arrière-plan (comme l'analyse auto)
+// et de gérer le système de log coté frontend
 
 importScripts('../config/api-config.js');
+importScripts('../utils/hash.js');
 
 console.log('🚀 Clear Terms Service Worker démarré');
 
@@ -15,6 +17,52 @@ function detectBrowserLanguage() {
 }
 
 /**
+ * Récupère ou crée un deviceId UUID
+ */
+async function getOrCreateDeviceId() {
+  try {
+    const { deviceId } = await chrome.storage.sync.get(['deviceId']);
+    if (deviceId) {
+      console.log('✅ [AUTO] DeviceId existant trouvé:', deviceId);
+      return deviceId;
+    }
+
+    // Générer un nouveau UUID
+    const newDeviceId = crypto.randomUUID();
+    await chrome.storage.sync.set({ deviceId: newDeviceId });
+    console.log('🆕 [AUTO] Nouveau deviceId généré:', newDeviceId);
+    return newDeviceId;
+  } catch (error) {
+    console.error('❌ [AUTO] Erreur lors de la génération du deviceId:', error);
+    return null;
+  }
+}
+
+/**
+ * Enregistre un utilisateur en arrière-plan
+ */
+async function registerUserInBackground(deviceId) {
+  const backendUrl = getBackendURL();
+  console.log('🔐 [AUTO] Enregistrement de l\'utilisateur avec deviceId:', deviceId);
+
+  const response = await fetch(`${backendUrl}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceId })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erreur d'enregistrement: ${response.status}`);
+  }
+
+  const { jwt, remainingScans } = await response.json();
+  await chrome.storage.sync.set({ jwt, remainingScans });
+  console.log('✅ [AUTO] Utilisateur enregistré. JWT obtenu, crédits:', remainingScans);
+
+  return { jwt, remainingScans };
+}
+
+/**
  * Gère l'analyse automatique en arrière-plan
  */
 async function handleAutoAnalysis(url, content, tabId) {
@@ -22,29 +70,116 @@ async function handleAutoAnalysis(url, content, tabId) {
     console.log('🔍 Analyse automatique lancée pour:', url);
     console.log('📏 [AUTO] Longueur du contenu:', content.length, 'caractères');
 
+    // 1. Vérifier/Générer deviceId
+    let deviceId = await getOrCreateDeviceId();
+
+    // CONTRÔLE CRITIQUE : Si pas de deviceId après tentative, on abandonne
+    if (!deviceId) {
+      console.error('❌ [AUTO] Impossible de générer un deviceId, abandon de l\'analyse auto');
+      return;
+    }
+
+    // 2. Récupérer JWT et crédits
+    let { jwt, remainingScans } = await chrome.storage.sync.get(['jwt', 'remainingScans']);
+
+    // Vérifier les crédits avant de lancer l'analyse
+    if (remainingScans !== undefined && remainingScans <= 0) {
+      console.warn('⚠️ [AUTO] Quota épuisé, analyse automatique annulée');
+      return;
+    }
+
+    // 3. Si pas de JWT, enregistrer l'utilisateur automatiquement
+    if (!jwt) {
+      console.log('🔐 [AUTO] Pas de JWT, enregistrement automatique...');
+      try {
+        const authData = await registerUserInBackground(deviceId);
+        jwt = authData.jwt;
+        remainingScans = authData.remainingScans;
+        console.log('✅ [AUTO] Enregistrement réussi, crédits:', remainingScans);
+      } catch (error) {
+        console.error('❌ [AUTO] Échec de l\'enregistrement automatique:', error);
+        return;
+      }
+    }
+
     // Toujours détecter automatiquement la langue du navigateur
     const lang = detectBrowserLanguage();
 
-    // Lancer l'analyse
+    // 4. CHERCHER D'ABORD DANS L'HISTORIQUE LOCAL
+    const contentHash = await hashUtils.generateContentHash(content);
+    const historyReport = await hashUtils.findReportInHistory(contentHash, lang);
+
+    if (historyReport) {
+      console.log('✅ [AUTO] Rapport trouvé dans l\'historique local');
+      console.log('📊 [AUTO] Source: history - Pas de débit de crédits');
+
+      // Pas de débit de crédits
+      // Toast déjà affiché par detection.js
+      return;
+    }
+
+    console.log('❌ [AUTO] Pas de rapport dans l\'historique, appel backend...');
+
+    // 5. SI PAS DANS L'HISTORIQUE, LANCER L'ANALYSE (cache ou IA)
     const backendUrl = getBackendURL();
     console.log('🌐 [AUTO] Backend URL utilisée:', backendUrl);
 
     const response = await fetch(`${backendUrl}/scan`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`
+      },
       body: JSON.stringify({
         url,
         content,
-        user_language_preference: lang
+        user_language_preference: lang,
+        deviceId
       })
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+
+      // Gestion quota épuisé
+      if (errorData.error === 'QUOTA_EXCEEDED') {
+        console.warn('⚠️ [AUTO] Quota épuisé');
+        await chrome.storage.sync.set({ remainingScans: 0 });
+        return;
+      }
+
+      // Gestion token expiré : on réessaye avec un nouveau token
+      if (errorData.error === 'TOKEN_EXPIRED' || errorData.error === 'NO_TOKEN') {
+        console.warn('⚠️ [AUTO] Token expiré, rafraîchissement...');
+        try {
+          const authData = await registerUserInBackground(deviceId);
+          jwt = authData.jwt;
+          // Réessayer l'analyse avec le nouveau token
+          return await handleAutoAnalysis(url, content, tabId);
+        } catch (error) {
+          console.error('❌ [AUTO] Échec du rafraîchissement du token:', error);
+          return;
+        }
+      }
+
+      // Gestion token invalide ou device mismatch : BLOQUER (suspect)
+      if (errorData.error === 'INVALID_TOKEN' || errorData.error === 'DEVICE_MISMATCH') {
+        console.error('🚫 [AUTO] Token invalide ou device mismatch - analyse bloquée');
+        return;
+      }
+
       throw new Error('Erreur lors du lancement de l\'analyse');
     }
 
-    const { job_id } = await response.json();
+    const data = await response.json();
+    const { job_id, remainingScans: newCredits } = data;
     console.log('📊 Job ID créé:', job_id);
+
+    // Mettre à jour les crédits localement
+    if (newCredits !== undefined) {
+      await chrome.storage.sync.set({ remainingScans: newCredits });
+      console.log('💳 Crédits mis à jour:', newCredits);
+    }
 
     // Stocker le job pour cet onglet
     await chrome.storage.local.set({
@@ -111,6 +246,7 @@ async function pollAutoJob(jobId, tabId) {
           }
         });
 
+        // Toast déjà affiché par detection.js
         break;
       }
 

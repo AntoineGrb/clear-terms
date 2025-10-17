@@ -5,8 +5,9 @@
 /**
  * Crée et affiche le toast de notification
  * Utilise Shadow DOM pour l'isolation CSS
+ * @param {string} source - Source de l'analyse: 'history' ou 'backend' (cache ou IA)
  */
-function createToast() {
+function createToast(source = 'backend') {
   // Vérifier si le toast existe déjà
   if (document.getElementById('clear-terms-toast-container')) {
     console.log('[Clear Terms] Toast déjà affiché');
@@ -22,17 +23,20 @@ function createToast() {
     const translations = {
       fr: {
         appName: 'Clear Terms',
-        title: 'Analyse des CGU disponible',
-        subtitle: 'Cliquer pour voir l\'analyse'
+        titleHistory: 'Analyse CGU disponible',
+        titleBackend: 'Nouvelle analyse CGU',
+        subtitle: 'Cliquer pour consulter'
       },
       en: {
         appName: 'Clear Terms',
-        title: 'Terms Analysis Available',
-        subtitle: 'Click to view analysis'
+        titleHistory: 'Terms Analysis Available',
+        titleBackend: 'New Terms Analysis',
+        subtitle: 'Click to view'
       }
     };
 
     const t = translations[lang];
+    const title = source === 'history' ? t.titleHistory : t.titleBackend;
 
     // Créer le container avec la position choisie
     const toastContainer = document.createElement('div');
@@ -52,6 +56,9 @@ function createToast() {
       z-index: 2147483647;
       animation: slideIn 0.3s ease-out;
     `;
+
+    // Récupérer l'URL de l'icône AVANT de créer le Shadow DOM
+    const iconUrl = chrome.runtime.getURL('icon/icon48.png');
 
     // Créer Shadow DOM
     const shadow = toastContainer.attachShadow({ mode: 'open' });
@@ -77,13 +84,7 @@ function createToast() {
           padding: 16px;
           max-width: 340px;
           cursor: pointer;
-          transition: all 0.2s ease;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        .toast:hover {
-          box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
-          transform: translateY(-2px);
         }
 
         .toast-header {
@@ -97,14 +98,12 @@ function createToast() {
           flex-shrink: 0;
           width: 32px;
           height: 32px;
-          background: linear-gradient(135deg, #6366f1 0%, #a78bfa 100%);
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          font-size: 14px;
-          color: white;
+        }
+
+        .logo img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
 
         .app-name {
@@ -165,7 +164,9 @@ function createToast() {
       </style>
       <div class="toast">
         <div class="toast-header">
-          <div class="logo">CT</div>
+          <div class="logo">
+            <img src="${iconUrl}" alt="Clear Terms">
+          </div>
           <p class="app-name">${t.appName}</p>
           <button class="close-btn" id="close-toast" aria-label="Close">
             <svg class="close-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,7 +176,7 @@ function createToast() {
         </div>
         <div class="toast-content">
           <div class="text-content">
-            <p class="title">${t.title}</p>
+            <p class="title">${title}</p>
             <p class="subtitle">${t.subtitle}</p>
           </div>
         </div>

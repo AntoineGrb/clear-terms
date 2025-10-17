@@ -7,6 +7,9 @@ const validator = require('validator');
 require('dotenv').config();
 
 const { processJob } = require('./services/job-processor');
+const authRoutes = require('./routes/auth-routes');
+const userService = require('./services/user-service');
+const { verifyJWT } = require('./middleware/auth-middleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -96,15 +99,38 @@ function enforceCacheLimit() {
 // Routes API
 // -----------------------------
 
+// Routes d'authentification
+app.use('/api/auth', authRoutes);
+
 /**
  * POST /scan
  * Lance une analyse de CGU
- * Body: { url: string, content: string, user_language_preference: string }
- * Response: { job_id: string }
+ * Body: { url: string, content: string, user_language_preference: string, deviceId: string }
+ * Headers: Authorization: Bearer <jwt>
+ * Response: { job_id: string, remainingScans: number }
  */
-app.post('/scan', scanLimiter, async (req, res) => {
+app.post('/scan', scanLimiter, verifyJWT, async (req, res) => {
   try {
-    const { url, content, user_language_preference } = req.body;
+    const { url, content, user_language_preference, deviceId } = req.body;
+
+    // Vérifier les crédits de l'utilisateur
+    if (!deviceId) {
+      return res.status(400).json({ error: 'Le champ "deviceId" est requis' });
+    }
+
+    const user = await userService.getUser(deviceId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'USER_NOT_FOUND', message: 'Utilisateur non trouvé' });
+    }
+
+    if (user.remainingScans <= 0) {
+      return res.status(403).json({
+        error: 'QUOTA_EXCEEDED',
+        message: 'Quota de scans épuisé',
+        remainingScans: 0
+      });
+    }
 
     // Validation du contenu
     if (!content || typeof content !== 'string') {
@@ -130,22 +156,27 @@ app.post('/scan', scanLimiter, async (req, res) => {
     // Valider et définir la langue par défaut
     const userLanguage = ['fr', 'en'].includes(user_language_preference) ? user_language_preference : 'en';
 
-    // Créer le job
+    // Créer le job SANS décrémenter (décrémentation dans job-processor)
     const jobId = crypto.randomUUID();
     jobs.set(jobId, {
       status: 'queued',
       url: url || 'unknown',
       content,
       userLanguage,
+      deviceId, // Stocker deviceId pour décrémenter dans le processor
       result: null,
       error: null,
       createdAt: Date.now()
     });
 
     // Lancer le traitement en arrière-plan
-    processJob(jobId, jobs, cache, PRIMARY_MODEL, FALLBACK_MODELS, process.env.GEMINI_API_KEY, enforceCacheLimit);
+    // La décrémentation se fera SEULEMENT si cache miss ou nouvelle analyse IA
+    processJob(jobId, jobs, cache, PRIMARY_MODEL, FALLBACK_MODELS, process.env.GEMINI_API_KEY, enforceCacheLimit, userService);
 
-    res.json({ job_id: jobId });
+    res.json({
+      job_id: jobId,
+      remainingScans: user.remainingScans // Retourner les crédits actuels
+    });
 
   } catch (error) {
     console.error('Erreur /scan:', error.message, error.stack);
@@ -158,7 +189,7 @@ app.post('/scan', scanLimiter, async (req, res) => {
  * Récupère l'état d'un job
  * Response: { status: 'queued'|'running'|'done'|'error', result?: object, error?: string }
  */
-app.get('/jobs/:id', jobsLimiter, (req, res) => {
+app.get('/jobs/:id', jobsLimiter, async (req, res) => {
   const { id } = req.params;
 
   // Validation du format UUID
@@ -179,10 +210,34 @@ app.get('/jobs/:id', jobsLimiter, (req, res) => {
 
   if (job.status === 'done' && job.result) {
     response.result = job.result;
+
+    // Ajouter les crédits restants si deviceId disponible
+    if (job.deviceId) {
+      try {
+        const user = await userService.getUser(job.deviceId);
+        if (user) {
+          response.remainingScans = user.remainingScans;
+        }
+      } catch (error) {
+        console.error('[JOBS] Erreur récupération crédits:', error.message);
+      }
+    }
   }
 
   if (job.status === 'error' && job.error) {
     response.error = job.error;
+
+    // Ajouter les crédits restants même en cas d'erreur (pour refund)
+    if (job.deviceId) {
+      try {
+        const user = await userService.getUser(job.deviceId);
+        if (user) {
+          response.remainingScans = user.remainingScans;
+        }
+      } catch (error) {
+        console.error('[JOBS] Erreur récupération crédits:', error.message);
+      }
+    }
   }
 
   res.json(response);

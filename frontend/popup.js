@@ -16,6 +16,18 @@ document.getElementById('scanButton').addEventListener('click', async () => {
   let currentUrl = 'unknown';
 
   try {
+    // Vérifier les crédits AVANT de lancer l'analyse
+    const hasCredits = await authService.hasCredits();
+
+    if (!hasCredits) {
+      const lang = await loadLanguagePreference();
+      const message = i18n.t('errorNoCredits', lang);
+      updateStatus(`ERROR:${message}`, 'warning');
+      button.disabled = false;
+      button.classList.remove('opacity-50', 'cursor-not-allowed');
+      return;
+    }
+
     updateStatus('statusExtracting', 'loading');
 
     // Extraire le contenu
@@ -54,9 +66,28 @@ document.getElementById('scanButton').addEventListener('click', async () => {
     // Récupérer la préférence de langue
     const userLanguage = await loadLanguagePreference();
 
-    // Lancer l'analyse
-    const { job_id } = await startScan(url, text, userLanguage);
+    // Lancer l'analyse (cherche d'abord dans l'historique)
+    const scanResult = await startScan(url, text, userLanguage);
+    const { job_id, fromHistory, report: historyReport } = scanResult;
 
+    // Si le rapport vient de l'historique local
+    if (fromHistory && historyReport) {
+      console.log('✅ [POPUP] Rapport récupéré depuis l\'historique local');
+      updateStatus('statusComplete', 'success');
+
+      chrome.runtime.sendMessage({
+        type: 'ANALYSIS_COMPLETE',
+        url,
+        report: historyReport,
+        fromHistory: true
+      });
+
+      // Afficher directement le rapport
+      displayReport(historyReport);
+      return;
+    }
+
+    // Sinon, c'est une nouvelle analyse (cache ou IA)
     chrome.runtime.sendMessage({
       type: 'ANALYSIS_STARTED',
       url,
@@ -65,12 +96,12 @@ document.getElementById('scanButton').addEventListener('click', async () => {
 
     updateStatus('statusAnalyzing', 'loading');
 
-    // Attendre le résultat
+    // Attendre le résultat via polling
     const report = await pollJob(job_id);
 
     updateStatus('statusComplete', 'success');
 
-    // Ajouter au reportsHistory
+    // Ajouter au reportsHistory seulement pour les nouvelles analyses
     await addToReportsHistory(report);
 
     // Logger le rapport complet dans le service worker
@@ -91,10 +122,17 @@ document.getElementById('scanButton').addEventListener('click', async () => {
       errorCode: error.code
     });
 
-    // Classifier et formater l'erreur pour l'utilisateur
-    const lang = await loadLanguagePreference();
-    const formattedError = formatErrorForUser(error, lang);
-    updateStatus(`ERROR:${formattedError.message}`, 'error');
+    // Gestion spécifique de l'erreur quota
+    if (error.message === 'QUOTA_EXCEEDED' || error.isQuotaError) {
+      const lang = await loadLanguagePreference();
+      const message = i18n.t('errorNoCredits', lang);
+      updateStatus(`ERROR:${message}`, 'warning');
+    } else {
+      // Classifier et formater l'erreur pour l'utilisateur
+      const lang = await loadLanguagePreference();
+      const formattedError = formatErrorForUser(error, lang);
+      updateStatus(`ERROR:${formattedError.message}`, 'error');
+    }
   } finally {
     button.disabled = false;
     button.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -244,9 +282,14 @@ chrome.storage.local.get(['lastReport'], async (result) => {
   });
 
   // Charger et afficher les crédits restants
-  chrome.storage.local.get(['remainingScans'], (scanResult) => {
+  chrome.storage.sync.get(['remainingScans'], (scanResult) => {
     const remaining = scanResult.remainingScans !== undefined ? scanResult.remainingScans : 20;
     document.getElementById('remainingScans').textContent = remaining;
+  });
+
+  // Initialiser l'authentification (génère deviceId + JWT si première fois)
+  authService.getJWT().catch((error) => {
+    console.error('[POPUP] Erreur initialisation auth:', error);
   });
 
   // Vérifier si une analyse auto est en cours pour l'onglet actif
@@ -305,6 +348,25 @@ async function continuePollingFromPopup(jobId) {
 async function addToReportsHistory(report) {
   try {
     const { reportsHistory = [] } = await chrome.storage.local.get(['reportsHistory']);
+
+    // Vérifier si le rapport existe déjà (via contentHash)
+    const contentHash = report.metadata?.content_hash;
+    if (contentHash) {
+      const exists = reportsHistory.some(entry =>
+        entry.report?.metadata?.content_hash === contentHash &&
+        entry.report?.language === report.language
+      );
+
+      if (exists) {
+        console.log('📚 [HISTORY] Rapport déjà présent dans l\'historique, ignoré');
+        return;
+      }
+    }
+
+    // S'assurer que le rapport a un contentHash et une langue
+    if (!report.language && report.metadata?.output_language) {
+      report.language = report.metadata.output_language;
+    }
 
     // Créer l'entrée d'historique
     const historyEntry = {

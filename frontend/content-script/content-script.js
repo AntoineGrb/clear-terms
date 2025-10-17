@@ -15,7 +15,7 @@
 // ========================================
 
 /**
- * Écouter les messages de la popup (pour validation manuelle)
+ * Écouter les messages de la popup et du background
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'VALIDATE_CONTENT') {
@@ -27,6 +27,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'EXTRACT_CONTENT') {
     const { text, url } = extractCleanContent();
     sendResponse({ content: text, url: url });
+  }
+
+  // Afficher le toast (appelé depuis background.js)
+  if (message.type === 'SHOW_TOAST') {
+    const source = message.source || 'backend';
+    if (typeof createToast === 'function') {
+      createToast(source);
+    }
+    sendResponse({ success: true });
   }
 
   return true; // Réponse asynchrone

@@ -36,8 +36,8 @@ async function detectAndAnalyze() {
 
     console.log('[Clear Terms] ✅ CGU détectée');
 
-    // Afficher le toast
-    createToast();
+    // Afficher le toast immédiatement
+    createToast('backend'); // Toujours "Nouvelle analyse CGU" par défaut
 
     // Lancer l'analyse en arrière-plan
     chrome.runtime.sendMessage({

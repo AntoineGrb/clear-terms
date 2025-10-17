@@ -150,9 +150,9 @@ function createReportCard(entry) {
     });
 
   const categoryColors = {
-    green: 'bg-emerald-50 border-emerald-500',
+    red: 'bg-red-50 border-red-500',
     amber: 'bg-amber-50 border-amber-500',
-    red: 'bg-red-50 border-red-500'
+    green: 'bg-emerald-50 border-emerald-500'
   };
 
   return `
@@ -175,16 +175,16 @@ function createReportCard(entry) {
           <!-- Badges -->
           <div class="flex flex-shrink-0 gap-3">
             <div class="flex flex-col items-center gap-1">
-              <div class="flex items-center justify-center w-12 h-12 text-lg font-semibold rounded-lg bg-emerald-100 text-emerald-700">${statusCounts.green}</div>
-              <span class="text-[10px] text-gray-400 uppercase tracking-wide font-medium">OK</span>
+              <div class="flex items-center justify-center w-12 h-12 text-lg font-semibold rounded-lg bg-red-100 text-red-700">${statusCounts.red}</div>
+              <span class="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Alert</span>
             </div>
             <div class="flex flex-col items-center gap-1">
               <div class="flex items-center justify-center w-12 h-12 text-lg font-semibold rounded-lg bg-amber-100 text-amber-700">${statusCounts.amber}</div>
               <span class="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Moy</span>
             </div>
             <div class="flex flex-col items-center gap-1">
-              <div class="flex items-center justify-center w-12 h-12 text-lg font-semibold rounded-lg bg-red-100 text-red-700">${statusCounts.red}</div>
-              <span class="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Alert</span>
+              <div class="flex items-center justify-center w-12 h-12 text-lg font-semibold rounded-lg bg-emerald-100 text-emerald-700">${statusCounts.green}</div>
+              <span class="text-[10px] text-gray-400 uppercase tracking-wide font-medium">OK</span>
             </div>
           </div>
 

@@ -1,24 +1,26 @@
-const { cleanText, calculateUrlHash } = require('../utils/text-processing');
+const { cleanText, calculateUrlHash, calculateContentHash } = require('../utils/text-processing');
 const { loadPromptTemplate, callGemini } = require('../utils/gemini');
 
 /**
  * Traite un job d'analyse
  */
-async function processJob(jobId, jobs, cache, primaryModel, fallbackModels, apiKey, enforceCacheLimit) {
+async function processJob(jobId, jobs, cache, primaryModel, fallbackModels, apiKey, enforceCacheLimit, userService) {
   const job = jobs.get(jobId);
   if (!job) return;
 
   try {
     job.status = 'running';
 
-    const { url, content, userLanguage } = job;
+    const { url, content, userLanguage, deviceId } = job;
     const cleanedContent = cleanText(content);
 
-    // Calculer le hash basé sur l'URL
+    // Calculer les hashs
     const urlHash = calculateUrlHash(url);
+    const contentHash = calculateContentHash(content);
 
     console.log(`🔗 [JOB ${jobId}] URL: ${url}`);
     console.log(`📊 [JOB ${jobId}] Hash URL: ${urlHash.substring(0, 16)}...`);
+    console.log(`📄 [JOB ${jobId}] Hash Contenu: ${contentHash.substring(0, 16)}...`);
     console.log(`🌍 [JOB ${jobId}] Langue demandée: ${userLanguage}`);
 
     // Vérifier le cache pour cette URL et cette langue
@@ -43,7 +45,24 @@ async function processJob(jobId, jobs, cache, primaryModel, fallbackModels, apiK
           // Mettre à jour lastAccessedAt pour LRU
           cachedEntry.lastAccessedAt = new Date().toISOString();
 
-          job.result = cachedEntry.reports[userLanguage];
+          const cachedReport = cachedEntry.reports[userLanguage];
+          // Marquer la source comme 'cache'
+          if (cachedReport.metadata) {
+            cachedReport.metadata.source = 'cache';
+            cachedReport.metadata.content_hash = contentHash;
+          }
+
+          // ✅ DÉCRÉMENTER les crédits (cache hit = débit)
+          if (userService && deviceId) {
+            try {
+              const newCredits = await userService.decrementCredits(deviceId);
+              console.log(`💳 [CACHE HIT] Crédits décrémtés pour ${deviceId}: ${newCredits} restants`);
+            } catch (error) {
+              console.error(`❌ [CACHE HIT] Erreur décrémentation:`, error.message);
+            }
+          }
+
+          job.result = cachedReport;
           job.status = 'done';
           return;
         }
@@ -78,6 +97,19 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
 `;
 
     const fullPrompt = languageInstruction + promptTemplate + '\n\n' + cleanedContent;
+
+    // ✅ DÉCRÉMENTER les crédits AVANT l'appel IA (cache miss)
+    if (userService && deviceId) {
+      try {
+        const newCredits = await userService.decrementCredits(deviceId);
+        console.log(`💳 [AI CALL] Crédits décrémtés pour ${deviceId}: ${newCredits} restants`);
+        // Stocker dans le job pour pouvoir rembourser en cas d'erreur
+        job.creditDebited = true;
+      } catch (error) {
+        console.error(`❌ [AI CALL] Erreur décrémentation:`, error.message);
+        throw new Error('Impossible de décrémenter les crédits');
+      }
+    }
 
     // Appeler Gemini
     const aiResponse = await callGemini(fullPrompt, fallbackModels, apiKey);
@@ -122,10 +154,12 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
     // Ajouter des métadonnées
     report.metadata = {
       url_hash: urlHash,
+      content_hash: contentHash,
       analyzed_at: new Date().toISOString(),
       analyzed_url: job.url || 'unknown',
       model_used: primaryModel,
-      output_language: userLanguage
+      output_language: userLanguage,
+      source: 'ai' // Peut être 'ai', 'cache', ou 'history'
     };
 
     // Mettre en cache avec structure multilingue (basé sur URL)
@@ -160,6 +194,17 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
 
   } catch (error) {
     console.error(`❌ Erreur lors du traitement du job ${jobId}:`, error.message);
+
+    // 🔄 REMBOURSER les crédits si erreur ET si on avait débité
+    if (job.creditDebited && userService && deviceId) {
+      try {
+        const newCredits = await userService.addCredits(deviceId, 1);
+        console.log(`💰 [ERROR REFUND] Crédit remboursé pour ${deviceId}: ${newCredits} restants`);
+      } catch (refundError) {
+        console.error(`❌ [ERROR REFUND] Impossible de rembourser le crédit:`, refundError.message);
+      }
+    }
+
     job.status = 'error';
     job.error = error.message;
   }

@@ -2,6 +2,9 @@
 backend/.env
 .env
 
+# Database files
+backend/db/users.json
+
 # AI prompts & schemas (sensibles)
 backend/etc/secrets/prompt-template.md
 backend/schema.json

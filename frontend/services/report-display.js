@@ -97,9 +97,9 @@ function displayReport(report) {
   // Afficher les badges
   const badgesEl = document.getElementById('badges');
   badgesEl.innerHTML = `
-    <div class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">${statusCounts.green} ✓</div>
-    <div class="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">${statusCounts.amber} ⚠</div>
     <div class="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">${statusCounts.red} ✗</div>
+    <div class="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">${statusCounts.amber} ⚠</div>
+    <div class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">${statusCounts.green} ✓</div>
   `;
 
   // Afficher la section rapport et le titre + lien
@@ -177,13 +177,15 @@ function updateStatus(messageKey, type = '') {
   const icons = {
     loading: '<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>',
     success: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>',
-    error: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>'
+    error: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>',
+    warning: '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>'
   };
 
   const styles = {
     loading: 'text-blue-600 bg-blue-50',
     success: 'text-green-600 bg-green-50',
-    error: 'text-red-600 bg-red-50'
+    error: 'text-red-600 bg-red-50',
+    warning: 'text-orange-800 bg-orange-50 border border-orange-200'
   };
 
   if (type && messageKey) {
@@ -199,12 +201,35 @@ function updateStatus(messageKey, type = '') {
       message = i18n.t(messageKey, lang);
     }
 
-    statusEl.innerHTML = `
-      <div class="flex items-center gap-2 mt-3 p-3 rounded-md ${styles[type] || ''}">
-        ${icons[type] || ''}
-        <span class="text-xs font-medium">${message}</span>
-      </div>
-    `;
+    // Pour les warnings (quota épuisé), ajouter un lien vers la page de paiement
+    if (type === 'warning' && (messageKey.includes('errorNoCredits') || message.includes('crédit') || message.includes('credit'))) {
+      statusEl.innerHTML = `
+        <div class="flex items-center gap-2 mt-3 p-3 rounded-md ${styles[type] || ''}">
+          ${icons[type] || ''}
+          <div class="flex-1">
+            <p class="text-sm font-medium">${message}</p>
+            <button id="goToBillingLink" class="mt-2 text-sm font-medium text-orange-600 hover:text-orange-700 underline">
+              ${i18n.t('buyMoreCredits', lang)} →
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Event listener pour le lien
+      setTimeout(() => {
+        document.getElementById('goToBillingLink')?.addEventListener('click', () => {
+          chrome.tabs.create({ url: chrome.runtime.getURL('pages/billing/billing.html') });
+        });
+      }, 100);
+
+    } else {
+      statusEl.innerHTML = `
+        <div class="flex items-center gap-2 mt-3 p-3 rounded-md ${styles[type] || ''}">
+          ${icons[type] || ''}
+          <span class="text-xs font-medium">${message}</span>
+        </div>
+      `;
+    }
   } else {
     statusEl.innerHTML = '';
   }

@@ -30,10 +30,23 @@ document.addEventListener('DOMContentLoaded', async () => {
  */
 async function loadRemainingScans() {
   try {
-    const result = await chrome.storage.local.get(['remainingScans']);
+    // Utiliser storage.sync pour être cohérent avec le reste de l'app
+    const result = await chrome.storage.sync.get(['remainingScans']);
     const remaining = result.remainingScans !== undefined ? result.remainingScans : 20;
 
     document.getElementById('remainingScans').textContent = remaining;
+
+    // Écouter les changements de crédits en temps réel
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'sync' && changes.remainingScans) {
+        const newValue = changes.remainingScans.newValue;
+        if (newValue !== undefined) {
+          document.getElementById('remainingScans').textContent = newValue;
+          console.log('[BILLING] Crédits mis à jour:', newValue);
+        }
+      }
+    });
+
   } catch (error) {
     console.error('Erreur lors du chargement des crédits:', error);
   }

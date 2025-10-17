@@ -44,6 +44,12 @@
     "http://localhost:3000/*",
     "https://clear-terms.onrender.com/*"
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icon/*.png"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }

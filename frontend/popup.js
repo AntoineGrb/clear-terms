@@ -4,51 +4,13 @@
 // ========================================
 
 // ========================================
-// Event Handlers
+// Fonctions d'analyse et d'affichage
 // ========================================
-
-// ========================================
-// Vérifier les actions en attente depuis le toast
-// ========================================
-(async () => {
-  const { pendingToastAction } = await chrome.storage.local.get(['pendingToastAction']);
-
-  if (pendingToastAction) {
-    // Vérifier que l'action n'est pas trop vieille (max 5 secondes)
-    const age = Date.now() - pendingToastAction.timestamp;
-    if (age < 5000) {
-      console.log('📋 [POPUP] Action en attente depuis le toast:', pendingToastAction.type);
-
-      if (pendingToastAction.type === 'DISPLAY_REPORT') {
-        // Afficher le rapport
-        console.log('📊 [POPUP] Affichage du rapport depuis l\'historique');
-        console.log('📊 [POPUP] Hash du rapport:', pendingToastAction.report?.metadata?.content_hash);
-        console.log('📊 [POPUP] Site:', pendingToastAction.report?.metadata?.site_name);
-        displayReport(pendingToastAction.report);
-      } else if (pendingToastAction.type === 'PERFORM_ANALYSIS') {
-        // Lancer l'analyse
-        console.log('🚀 [POPUP] Lancement de l\'analyse depuis le toast');
-        console.log('🔗 [POPUP] URL:', pendingToastAction.url);
-        await handleToastAnalysisRequest(pendingToastAction.url, pendingToastAction.content);
-      }
-    } else {
-      console.warn('⚠️ [POPUP] Action trop vieille, ignorée (age: ' + age + 'ms)');
-    }
-
-    // Nettoyer l'action en attente
-    await chrome.storage.local.remove(['pendingToastAction']);
-  }
-})();
-
-// Handler pour le bouton d'analyse
-document.getElementById('scanButton').addEventListener('click', async () => {
-  await handleManualAnalysis();
-});
 
 /**
  * Gère l'analyse manuelle depuis le bouton
  */
-async function handleManualAnalysis(forceNew = false) {
+async function handleAnalysis(forceNew = false) {
   const button = document.getElementById('scanButton');
   button.disabled = true;
   button.classList.add('opacity-50', 'cursor-not-allowed');
@@ -56,6 +18,7 @@ async function handleManualAnalysis(forceNew = false) {
   let currentUrl = 'unknown';
 
   try {
+    console.log('🚀 ==================== Demande d\'analyse depuis le popup ====================')
     updateStatus('statusExtracting', 'loading');
 
     // Extraire le contenu
@@ -92,8 +55,10 @@ async function handleManualAnalysis(forceNew = false) {
     // Récupérer la préférence de langue
     const userLanguage = await loadLanguagePreference();
 
-    console.log('🌐 [POPUP MANUAL] URL:', url);
-    console.log('🗣️ [POPUP MANUAL] Langue:', userLanguage);
+    // --- Recherche dans l'historique ---
+    console.log('\n[HISTORIQUE] Recherche...');
+    console.log('  URL:', url);
+    console.log('  Langue:', userLanguage);
 
     // Vérifier d'abord l'historique par URL (sauf si forceNew = true)
     if (!forceNew) {
@@ -101,9 +66,12 @@ async function handleManualAnalysis(forceNew = false) {
       const historyReport = await getReportFromHistory(url, userLanguage);
 
       if (historyReport) {
-        console.log('✅ [POPUP MANUAL] Rapport trouvé dans l\'historique');
-        console.log('📊 [POPUP MANUAL] Site du rapport:', historyReport.metadata?.site_name);
-        console.log('📊 [POPUP MANUAL] URL du rapport:', historyReport.metadata?.analyzed_url);
+        console.log('  ✅ Rapport trouvé');
+        console.log('  Métadonnées:', {
+          site: historyReport.metadata?.site_name,
+          url: historyReport.metadata?.analyzed_url,
+          date: historyReport.metadata?.analyzed_at
+        });
 
         // Afficher le rapport
         displayReport(historyReport);
@@ -115,12 +83,16 @@ async function handleManualAnalysis(forceNew = false) {
         button.classList.remove('opacity-50', 'cursor-not-allowed');
         return;
       } else {
-        console.log('❌ [POPUP MANUAL] Aucun rapport trouvé dans l\'historique');
+        console.log('  ❌ Aucun rapport trouvé');
       }
+    } else {
+      console.log('  ⏭️ Recherche ignorée (relance forcée)');
     }
 
     // Pas de rapport dans l'historique OU relance forcée : lancer une analyse
-    console.log('🚀 [POPUP] Lancement d\'une nouvelle analyse');
+    console.log('\n[ANALYSE] Démarrage...');
+    console.log('  Source: POPUP');
+    console.log('  URL:', url);
 
     // Vérifier les crédits AVANT de lancer l'analyse
     const hasCredits = await authService.hasCredits();
@@ -139,6 +111,7 @@ async function handleManualAnalysis(forceNew = false) {
     // Lancer l'analyse (cache ou IA)
     const scanResult = await performAnalysis(url, text, userLanguage);
     const { job_id } = scanResult;
+    console.log('  Job ID:', job_id);
 
     chrome.runtime.sendMessage({
       type: 'ANALYSIS_STARTED',
@@ -148,6 +121,14 @@ async function handleManualAnalysis(forceNew = false) {
 
     // Attendre le résultat via polling
     const report = await pollJob(job_id);
+
+    console.log('  ✅ Analyse terminée');
+    console.log('  Métadonnées:', {
+      site: report.metadata?.site_name,
+      url: report.metadata?.analyzed_url,
+      date: report.metadata?.analyzed_at,
+      source: report.metadata?.source
+    });
 
     updateStatus('statusComplete', 'success');
 
@@ -190,6 +171,91 @@ async function handleManualAnalysis(forceNew = false) {
 }
 
 /**
+ * Gère une demande d'analyse depuis le toast
+ */
+async function handleToastAnalysisRequest(url, content) {
+  const button = document.getElementById('scanButton');
+
+  try {
+    console.log('\n==================== ANALYSE DEPUIS TOAST ====================');
+    console.log('URL:', url);
+
+    // Désactiver le bouton pendant l'analyse
+    button.disabled = true;
+    button.classList.add('opacity-50', 'cursor-not-allowed');
+
+    const userLanguage = await loadLanguagePreference();
+
+    // Vérifier les crédits
+    const hasCredits = await authService.hasCredits();
+
+    if (!hasCredits) {
+      const lang = await loadLanguagePreference();
+      const message = i18n.t('errorNoCredits', lang);
+      updateStatus(`ERROR:${message}`, 'warning');
+      button.disabled = false;
+      button.classList.remove('opacity-50', 'cursor-not-allowed');
+      return;
+    }
+
+    updateStatus('statusAnalyzing', 'loading');
+
+    // Lancer l'analyse (cache ou IA)
+    const scanResult = await performAnalysis(url, content, userLanguage);
+    const { job_id } = scanResult;
+    console.log('Job ID:', job_id);
+
+    chrome.runtime.sendMessage({
+      type: 'ANALYSIS_STARTED',
+      source: 'TOAST',
+      url,
+      jobId: job_id
+    });
+
+    // Attendre le résultat via polling
+    const report = await pollJob(job_id);
+
+    console.log('✅ Analyse terminée');
+    console.log('Métadonnées:', {
+      site: report.metadata?.site_name,
+      url: report.metadata?.analyzed_url,
+      date: report.metadata?.analyzed_at,
+      source: report.metadata?.source
+    });
+
+    updateStatus('statusComplete', 'success');
+
+    // Ajouter au reportsHistory
+    await addToReportsHistory(report);
+
+    // Logger le rapport complet dans le service worker
+    chrome.runtime.sendMessage({
+      type: 'ANALYSIS_COMPLETE',
+      url,
+      report
+    });
+
+    // Afficher le rapport
+    displayReport(report);
+
+  } catch (error) {
+    const lang = await loadLanguagePreference();
+
+    if (error.message === 'QUOTA_EXCEEDED' || error.isQuotaError) {
+      const message = i18n.t('errorNoCredits', lang);
+      updateStatus(`ERROR:${message}`, 'warning');
+    } else {
+      const formattedError = formatErrorForUser(error, lang);
+      updateStatus(`ERROR:${formattedError.message}`, 'error');
+    }
+  } finally {
+    // Réactiver le bouton
+    button.disabled = false;
+    button.classList.remove('opacity-50', 'cursor-not-allowed');
+  }
+}
+
+/**
  * Affiche un message spécial quand un rapport est trouvé dans l'historique
  */
 function showHistoryFoundStatus(url, content, userLanguage) {
@@ -212,130 +278,79 @@ function showHistoryFoundStatus(url, content, userLanguage) {
   document.getElementById('relaunchAnalysisLink').addEventListener('click', async (e) => {
     e.preventDefault();
     statusDiv.innerHTML = ''; // Nettoyer le message
-    await handleManualAnalysis(true); // Forcer une nouvelle analyse
+    await handleAnalysis(true); // Forcer une nouvelle analyse
   });
 }
 
-// ========================================
-// Navigation
-// ========================================
-
 /**
- * Cache toutes les pages
+ * Continue le polling d'un job depuis la popup
  */
-function hideAllPages() {
-  document.getElementById('mainPage').classList.add('hidden');
-  document.getElementById('settingsPage').classList.add('hidden');
-  document.getElementById('aboutPage').classList.add('hidden');
-  document.getElementById('termsPage').classList.add('hidden');
-}
-
-/**
- * Afficher les différentes pages du popup
- */
-function showSettingsPage() {
-  hideAllPages();
-  document.getElementById('settingsPage').classList.remove('hidden');
-}
-
-function showMainPage() {
-  hideAllPages();
-  document.getElementById('mainPage').classList.remove('hidden');
-}
-
-function showAboutPage() {
-  hideAllPages();
-  document.getElementById('aboutPage').classList.remove('hidden');
-}
-
-function showTermsPage() {
-  hideAllPages();
-  document.getElementById('termsPage').classList.remove('hidden');
-}
-
-// Event listeners pour la navigation
-document.getElementById('settingsButton').addEventListener('click', () => {
-  showSettingsPage();
-});
-
-document.getElementById('backButton').addEventListener('click', () => {
-  showMainPage();
-});
-
-// Navigation vers À propos
-document.getElementById('aboutButton').addEventListener('click', () => {
-  showAboutPage();
-});
-
-document.getElementById('backFromAbout').addEventListener('click', () => {
-  showMainPage();
-});
-
-// Navigation vers Terms
-document.getElementById('termsButton').addEventListener('click', () => {
-  showTermsPage();
-});
-
-document.getElementById('backFromTerms').addEventListener('click', () => {
-  showMainPage();
-});
-
-// Navigation vers l'historique
-document.getElementById('historyLink').addEventListener('click', (e) => {
-  e.preventDefault();
-  chrome.tabs.create({ url: chrome.runtime.getURL('pages/history/history.html') });
-});
-
-// Navigation vers la page de paiement
-document.getElementById('buyCreditsButton').addEventListener('click', (e) => {
-  e.preventDefault();
-  chrome.tabs.create({ url: chrome.runtime.getURL('pages/billing/billing.html') });
-});
-
-// ========================================
-// Paramètres
-// ========================================
-
-// Event listener pour l'activation/désactivation du toast
-document.getElementById('toastEnabled').addEventListener('change', (e) => {
-  chrome.storage.local.set({ toastEnabled: e.target.checked });
-});
-
-// Event listener pour la position du toast
-document.getElementById('toastPosition').addEventListener('change', (e) => {
-  chrome.storage.local.set({ toastPosition: e.target.value });
-});
-
-// Event listener pour la durée du toast
-document.getElementById('toastDuration').addEventListener('change', (e) => {
-  chrome.storage.local.set({ toastDuration: parseInt(e.target.value) });
-});
-
-// Event listener pour copier l'URL
-document.getElementById('copyUrlButton').addEventListener('click', async (e) => {
-  e.stopPropagation(); // Ne pas déclencher l'accordéon
-
-  const urlElement = document.getElementById('analyzedUrl');
-  const fullUrl = urlElement.dataset.fullUrl;
-
+async function continuePollingFromPopup(jobId) {
+  const button = document.getElementById('scanButton');
   try {
-    await navigator.clipboard.writeText(fullUrl);
+    const report = await pollJob(jobId);
+    updateStatus('statusComplete', 'success');
+    displayReport(report);
+  } catch (error) {
+    const lang = await loadLanguagePreference();
+    const formattedError = formatErrorForUser(error, lang);
+    updateStatus(`ERROR:${formattedError.message}`, 'error');
+  } finally {
+    // Réactiver le bouton une fois l'analyse terminée
+    button.disabled = false;
+    button.classList.remove('opacity-50', 'cursor-not-allowed');
+  }
+}
 
-    // Feedback visuel
-    e.currentTarget.classList.remove('text-gray-400');
-    e.currentTarget.classList.add('text-green-500');
+/**
+ * Ajoute un rapport à l'historique
+ */
+async function addToReportsHistory(report) {
+  try {
+    const { reportsHistory = [] } = await chrome.storage.local.get(['reportsHistory']);
 
-    setTimeout(() => {
-      e.currentTarget.classList.remove('text-green-500');
-      e.currentTarget.classList.add('text-gray-400');
-    }, 1000);
+    // Vérifier si le rapport existe déjà (via contentHash)
+    const contentHash = report.metadata?.content_hash;
+    if (contentHash) {
+      const exists = reportsHistory.some(entry =>
+        entry.report?.metadata?.content_hash === contentHash &&
+        entry.report?.language === report.language
+      );
+
+      if (exists) {
+        console.log('📚 [HISTORY] Rapport déjà présent dans l\'historique, ignoré');
+        return;
+      }
+    }
+
+    // S'assurer que le rapport a un contentHash et une langue
+    if (!report.language && report.metadata?.output_language) {
+      report.language = report.metadata.output_language;
+    }
+
+    // Créer l'entrée d'historique
+    const historyEntry = {
+      id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+      report: report
+    };
+
+    reportsHistory.unshift(historyEntry);
+
+    // Limiter à 100 rapports max (FIFO)
+    if (reportsHistory.length > 100) {
+      reportsHistory.splice(100);
+    }
+
+    await chrome.storage.local.set({ reportsHistory });
+
   } catch (error) {
     // Erreur silencieuse
   }
-});
+}
 
 // ========================================
-// Initialisation
+// Initialisation du popup
 // ========================================
 
 // Charger le dernier rapport et la langue au démarrage
@@ -406,76 +421,38 @@ chrome.storage.local.get(['lastReport', 'pendingToastAction'], async (result) =>
   }
 });
 
-/**
- * Continue le polling d'un job depuis la popup
- */
-async function continuePollingFromPopup(jobId) {
-  const button = document.getElementById('scanButton');
-  try {
-    const report = await pollJob(jobId);
-    updateStatus('statusComplete', 'success');
-    displayReport(report);
-  } catch (error) {
-    const lang = await loadLanguagePreference();
-    const formattedError = formatErrorForUser(error, lang);
-    updateStatus(`ERROR:${formattedError.message}`, 'error');
-  } finally {
-    // Réactiver le bouton une fois l'analyse terminée
-    button.disabled = false;
-    button.classList.remove('opacity-50', 'cursor-not-allowed');
-  }
-}
+// ========================================
+// Event handlers
+// ========================================
 
-/**
- * Ajoute un rapport à l'historique
- */
-async function addToReportsHistory(report) {
-  try {
-    const { reportsHistory = [] } = await chrome.storage.local.get(['reportsHistory']);
+// Vérifier les actions en attente depuis le toast
+(async () => {
+  const { pendingToastAction } = await chrome.storage.local.get(['pendingToastAction']);
 
-    // Vérifier si le rapport existe déjà (via contentHash)
-    const contentHash = report.metadata?.content_hash;
-    if (contentHash) {
-      const exists = reportsHistory.some(entry =>
-        entry.report?.metadata?.content_hash === contentHash &&
-        entry.report?.language === report.language
-      );
+  if (pendingToastAction) {
+    // Vérifier que l'action n'est pas trop vieille (max 5 secondes)
+    const age = Date.now() - pendingToastAction.timestamp;
+    if (age < 5000) {
+      console.log('📋 [POPUP] Action en attente depuis le toast:', pendingToastAction.type);
 
-      if (exists) {
-        console.log('📚 [HISTORY] Rapport déjà présent dans l\'historique, ignoré');
-        return;
+      if (pendingToastAction.type === 'DISPLAY_REPORT') {
+        displayReport(pendingToastAction.report);
+      } else if (pendingToastAction.type === 'PERFORM_ANALYSIS') {
+        await handleToastAnalysisRequest(pendingToastAction.url, pendingToastAction.content);
       }
+    } else {
+      console.warn('⚠️ [POPUP] Action trop vieille, ignorée (age: ' + age + 'ms)');
     }
 
-    // S'assurer que le rapport a un contentHash et une langue
-    if (!report.language && report.metadata?.output_language) {
-      report.language = report.metadata.output_language;
-    }
-
-    // Créer l'entrée d'historique
-    const historyEntry = {
-      id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-      report: report
-    };
-
-    reportsHistory.unshift(historyEntry);
-
-    // Limiter à 100 rapports max (FIFO)
-    if (reportsHistory.length > 100) {
-      reportsHistory.splice(100);
-    }
-
-    await chrome.storage.local.set({ reportsHistory });
-
-  } catch (error) {
-    // Erreur silencieuse
+    // Nettoyer l'action en attente
+    await chrome.storage.local.remove(['pendingToastAction']);
   }
-}
+})();
 
-// ========================================
-// Message Handlers - Réception depuis content-script/background
-// ========================================
+// Handler pour le bouton d'analyse
+document.getElementById('scanButton').addEventListener('click', async () => {
+  await handleAnalysis();
+});
 
 /**
  * Écouter les messages depuis le content-script (toast) et background
@@ -496,74 +473,186 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// ========================================
+// Navigation sur le popup
+// ========================================
+
 /**
- * Gère une demande d'analyse depuis le toast
+ * Cache toutes les pages
  */
-async function handleToastAnalysisRequest(url, content) {
-  const button = document.getElementById('scanButton');
+function hideAllPages() {
+  document.getElementById('mainPage').classList.add('hidden');
+  document.getElementById('settingsPage').classList.add('hidden');
+  document.getElementById('aboutPage').classList.add('hidden');
+  document.getElementById('termsPage').classList.add('hidden');
+  document.getElementById('contactPage').classList.add('hidden');
+}
+
+/**
+ * Afficher les différentes pages du popup
+ */
+function showSettingsPage() {
+  hideAllPages();
+  document.getElementById('settingsPage').classList.remove('hidden');
+}
+
+function showMainPage() {
+  hideAllPages();
+  document.getElementById('mainPage').classList.remove('hidden');
+}
+
+function showAboutPage() {
+  hideAllPages();
+  document.getElementById('aboutPage').classList.remove('hidden');
+}
+
+function showTermsPage() {
+  hideAllPages();
+  document.getElementById('termsPage').classList.remove('hidden');
+}
+
+function showContactPage() {
+  hideAllPages();
+  document.getElementById('contactPage').classList.remove('hidden');
+}
+
+// Event listeners pour la navigation
+document.getElementById('settingsButton').addEventListener('click', () => {
+  showSettingsPage();
+});
+
+document.getElementById('backButton').addEventListener('click', () => {
+  showMainPage();
+});
+
+// Navigation vers À propos
+document.getElementById('aboutButton').addEventListener('click', () => {
+  showAboutPage();
+});
+
+document.getElementById('backFromAbout').addEventListener('click', () => {
+  showMainPage();
+});
+
+// Navigation vers Terms
+document.getElementById('termsButton').addEventListener('click', () => {
+  showTermsPage();
+});
+
+document.getElementById('backFromTerms').addEventListener('click', () => {
+  showMainPage();
+});
+
+// Navigation vers Contact
+document.getElementById('contactButton').addEventListener('click', () => {
+  showContactPage();
+});
+
+document.getElementById('backFromContact').addEventListener('click', () => {
+  showMainPage();
+});
+
+// Navigation vers l'historique
+document.getElementById('historyLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.tabs.create({ url: chrome.runtime.getURL('pages/history/history.html') });
+});
+
+// Navigation vers la page de paiement
+document.getElementById('buyCreditsButton').addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.tabs.create({ url: chrome.runtime.getURL('pages/billing/billing.html') });
+});
+
+// ========================================
+// Formulaire de contact
+// ========================================
+
+document.getElementById('contactForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const form = e.target;
+  const submitBtn = document.getElementById('contactSubmitBtn');
+  const statusDiv = document.getElementById('contactStatus');
+  const lang = document.documentElement.lang || 'fr';
+
+  // Récupérer les données du formulaire
+  const formData = {
+    email: form.email.value.trim(),
+    subject: form.subject.value.trim(),
+    message: form.message.value.trim()
+  };
+
+  // Désactiver le bouton et afficher le statut d'envoi
+  submitBtn.disabled = true;
+  statusDiv.textContent = i18n.t('contactSending', lang);
+  statusDiv.className = 'text-xs text-blue-600';
 
   try {
-    // Désactiver le bouton pendant l'analyse
-    button.disabled = true;
-    button.classList.add('opacity-50', 'cursor-not-allowed');
+    // Envoyer via mailto (solution simple sans backend)
+    const mailtoLink = `mailto:antoine.grubert@outlook.fr?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(`From: ${formData.email}\n\n${formData.message}`)}`;
+    window.open(mailtoLink, '_blank');
 
-    const userLanguage = await loadLanguagePreference();
+    // Afficher le succès
+    statusDiv.textContent = i18n.t('contactSuccess', lang);
+    statusDiv.className = 'text-xs text-green-600';
 
-    // Vérifier les crédits
-    const hasCredits = await authService.hasCredits();
+    // Réinitialiser le formulaire
+    form.reset();
 
-    if (!hasCredits) {
-      const lang = await loadLanguagePreference();
-      const message = i18n.t('errorNoCredits', lang);
-      updateStatus(`ERROR:${message}`, 'warning');
-      button.disabled = false;
-      button.classList.remove('opacity-50', 'cursor-not-allowed');
-      return;
-    }
-
-    updateStatus('statusAnalyzing', 'loading');
-
-    // Lancer l'analyse (cache ou IA)
-    const scanResult = await performAnalysis(url, content, userLanguage);
-    const { job_id } = scanResult;
-
-    chrome.runtime.sendMessage({
-      type: 'ANALYSIS_STARTED',
-      url,
-      jobId: job_id
-    });
-
-    // Attendre le résultat via polling
-    const report = await pollJob(job_id);
-
-    updateStatus('statusComplete', 'success');
-
-    // Ajouter au reportsHistory
-    await addToReportsHistory(report);
-
-    // Logger le rapport complet dans le service worker
-    chrome.runtime.sendMessage({
-      type: 'ANALYSIS_COMPLETE',
-      url,
-      report
-    });
-
-    // Afficher le rapport
-    displayReport(report);
+    // Retour à la page principale après 2 secondes
+    setTimeout(() => {
+      showMainPage();
+      statusDiv.textContent = '';
+    }, 2000);
 
   } catch (error) {
-    const lang = await loadLanguagePreference();
-
-    if (error.message === 'QUOTA_EXCEEDED' || error.isQuotaError) {
-      const message = i18n.t('errorNoCredits', lang);
-      updateStatus(`ERROR:${message}`, 'warning');
-    } else {
-      const formattedError = formatErrorForUser(error, lang);
-      updateStatus(`ERROR:${formattedError.message}`, 'error');
-    }
+    console.error('Erreur envoi formulaire contact:', error);
+    statusDiv.textContent = i18n.t('contactError', lang);
+    statusDiv.className = 'text-xs text-red-600';
   } finally {
-    // Réactiver le bouton
-    button.disabled = false;
-    button.classList.remove('opacity-50', 'cursor-not-allowed');
+    submitBtn.disabled = false;
   }
-}
+});
+
+// ========================================
+// Paramètres
+// ========================================
+
+// Event listener pour l'activation/désactivation du toast
+document.getElementById('toastEnabled').addEventListener('change', (e) => {
+  chrome.storage.local.set({ toastEnabled: e.target.checked });
+});
+
+// Event listener pour la position du toast
+document.getElementById('toastPosition').addEventListener('change', (e) => {
+  chrome.storage.local.set({ toastPosition: e.target.value });
+});
+
+// Event listener pour la durée du toast
+document.getElementById('toastDuration').addEventListener('change', (e) => {
+  chrome.storage.local.set({ toastDuration: parseInt(e.target.value) });
+});
+
+// Event listener pour copier l'URL
+document.getElementById('copyUrlButton').addEventListener('click', async (e) => {
+  e.stopPropagation(); // Ne pas déclencher l'accordéon
+
+  const urlElement = document.getElementById('analyzedUrl');
+  const fullUrl = urlElement.dataset.fullUrl;
+
+  try {
+    await navigator.clipboard.writeText(fullUrl);
+
+    // Feedback visuel
+    e.currentTarget.classList.remove('text-gray-400');
+    e.currentTarget.classList.add('text-green-500');
+
+    setTimeout(() => {
+      e.currentTarget.classList.remove('text-green-500');
+      e.currentTarget.classList.add('text-gray-400');
+    }, 1000);
+  } catch (error) {
+    // Erreur silencieuse
+  }
+});

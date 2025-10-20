@@ -34,13 +34,8 @@ async function detectAndAnalyze() {
       return;
     }
 
-    console.log('[Clear Terms] ✅ CGU détectée');
-
     // ---- Étape 3: Vérifier l'historique utilisateur -----
     const userLanguage = await chrome.storage.local.get(['userLanguage']).then(d => d.userLanguage || 'fr');
-
-    console.log('[Clear Terms] 🌐 URL (AUTO):', url);
-    console.log('[Clear Terms] 🗣️ Langue (AUTO):', userLanguage);
 
     // Demander au background script de vérifier l'historique par URL
     chrome.runtime.sendMessage({
@@ -50,13 +45,9 @@ async function detectAndAnalyze() {
     }, (response) => {
       if (response && response.found) {
         // Rapport trouvé dans l'historique
-        console.log('[Clear Terms] 📋 Rapport trouvé dans l\'historique');
-        console.log('[Clear Terms] 📊 Site du rapport:', response.report.metadata?.site_name);
-        console.log('[Clear Terms] 📊 URL du rapport:', response.report.metadata?.analyzed_url);
         createToast('found', url, null, response.report);
       } else {
-        // Pas de rapport dans l'historique
-        console.log('[Clear Terms] 🆕 Aucun rapport dans l\'historique');
+        // Pas de rapport dans l'historique;
         createToast('detected', url, null, content);
       }
     });

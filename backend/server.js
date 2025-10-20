@@ -111,6 +111,7 @@ app.use('/api/auth', authRoutes);
  */
 app.post('/scan', scanLimiter, verifyJWT, async (req, res) => {
   try {
+    console.log('\n==================== SCAN REQUEST ====================');
     const { url, content, user_language_preference, deviceId } = req.body;
 
     // Vérifier les crédits de l'utilisateur

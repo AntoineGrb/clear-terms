@@ -21,11 +21,6 @@ async function findReportInHistory(url, language) {
   try {
     const { reportsHistory = [] } = await chrome.storage.local.get(['reportsHistory']);
 
-    console.log('🔍 [HISTORY] Recherche dans l\'historique...');
-    console.log('🔍 [HISTORY] URL recherchée:', url);
-    console.log('🔍 [HISTORY] Langue recherchée:', language);
-    console.log('🔍 [HISTORY] Nombre de rapports dans l\'historique:', reportsHistory.length);
-
     // Normaliser l'URL recherchée (retirer les paramètres de query non essentiels)
     const normalizedSearchUrl = normalizeUrl(url);
 
@@ -39,15 +34,6 @@ async function findReportInHistory(url, language) {
       // Normaliser l'URL du rapport
       const normalizedReportUrl = normalizeUrl(reportUrl);
 
-      console.log(`🔍 [HISTORY] Rapport ${i + 1}:`, {
-        site: siteName,
-        url: reportUrl,
-        normalizedUrl: normalizedReportUrl,
-        language: reportLanguage,
-        urlMatch: normalizedReportUrl === normalizedSearchUrl,
-        langMatch: reportLanguage === language
-      });
-
       if (entry.report && normalizedReportUrl === normalizedSearchUrl) {
         // Vérifier si le rapport a la langue demandée
         if (reportLanguage === language) {
@@ -58,8 +44,6 @@ async function findReportInHistory(url, language) {
         }
       }
     }
-
-    console.log('❌ [HISTORY] Aucun rapport trouvé dans l\'historique local');
     return null;
   } catch (error) {
     console.error('❌ [HISTORY] Erreur lors de la recherche dans l\'historique:', error);

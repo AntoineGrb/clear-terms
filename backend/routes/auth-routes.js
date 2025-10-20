@@ -23,6 +23,7 @@ function isValidUUID(uuid) {
  */
 router.post('/register', async (req, res) => {
   try {
+    console.log('\n==================== AUTH: REGISTER/LOGIN ====================');
     const { deviceId } = req.body;
 
     // Validation du deviceId
@@ -86,6 +87,7 @@ router.post('/register', async (req, res) => {
  */
 router.get('/credits', verifyJWT, async (req, res) => {
   try {
+    console.log('\n==================== AUTH: GET CREDITS ====================');
     const deviceId = req.body.deviceId || req.query.deviceId;
 
     if (!deviceId) {
@@ -129,6 +131,7 @@ router.get('/credits', verifyJWT, async (req, res) => {
  */
 router.post('/refresh', verifyJWT, async (req, res) => {
   try {
+    console.log('\n==================== AUTH: REFRESH TOKEN ====================');
     const { deviceId } = req.body;
 
     if (!deviceId) {

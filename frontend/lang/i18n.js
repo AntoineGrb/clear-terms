@@ -6,7 +6,7 @@ const translations = {
   fr: {
     // Header
     headerTitle: "Clear Terms",
-    headerSubtitle: "Analyse IA des conditions générales d'utilisation",
+    headerSubtitle: "Analyse IA des Conditions Générales d'Utilisation",
 
     // Boutons principaux
     analyzeButton: "Analyser la page active",
@@ -149,7 +149,7 @@ const translations = {
       statusNA: "⚪ N/A : Non mentionné dans le document",
 
       scoreTitle: "Calcul du score",
-      scoreText: "Le score global (A-E) est calculé en pondérant les catégories selon leur impact réel sur vos droits. Chaque catégorie a un poids spécifique : Résolution des litiges (13%), Partage des données (15%), Transferts internationaux (6%), etc. Pour chaque catégorie : vert = 2 points, ambre = 1 point, rouge = 0. Le score final est normalisé entre 0 et 1 puis converti en grade (A≥80%, B≥65%, C≥50%, D≥35%, E<35%).",
+      scoreText: "Le score global (A-E) est calculé en pondérant les catégories selon leur impact réel sur vos droits. Pour chaque catégorie : vert = 2 points, ambre = 1 point, rouge = 0. Le score final est normalisé entre 0 et 1 puis converti en grade (A≥80%, B≥65%, C≥50%, D≥35%, E<35%).",
 
       privacyTitle: "Confidentialité",
       privacyText: "Vos données ne sont jamais stockées de manière identifiable. L'analyse est effectuée en temps réel et les résultats sont mis en cache anonymement (par hash du contenu) pour optimiser les performances et réduire les coûts.",
@@ -168,7 +168,7 @@ const translations = {
       title: "Conditions de Service",
       effectiveDate: "Date d'effet : 6 octobre 2025",
 
-      intro: "Bienvenue sur Clear Terms — un outil conçu pour aider les utilisateurs à mieux comprendre les conditions d'utilisation et politiques de confidentialité des services numériques. En installant ou en utilisant l'extension Clear Terms, vous acceptez d'être lié par les présentes Conditions de Service.",
+      intro: "Bienvenue sur Clear Terms — un outil conçu pour aider les utilisateurs à mieux comprendre les Conditions d'utilisation et Politiques de confidentialité des services numériques. En installant ou en utilisant l'extension Clear Terms, vous acceptez d'être lié par les présentes Conditions de Service.",
       pleaseRead: "Veuillez les lire attentivement.",
 
       section1Title: "1. Présentation",
@@ -188,8 +188,7 @@ const translations = {
       section4Title: "4. Exactitude et limitations",
       section4Intro: "Bien que nous visions à fournir des informations précises et à jour :",
       section4Item1: "Nous ne garantissons pas l'exhaustivité, l'exactitude ou la force exécutoire juridique de tout résumé ou évaluation de risque fourni.",
-      section4Item2: "Les conditions d'utilisation changent fréquemment, et notre base de données peut ne pas toujours refléter la version la plus récente d'une politique donnée.",
-      section4Item3: "Notre analyse est basée sur des processus de révision automatisés et manuels, qui peuvent avoir des limitations ou des cas particuliers.",
+      section4Item2: "Notre analyse est basée sur des processus de révision automatisés et manuels, qui peuvent avoir des limitations ou des cas particuliers.",
 
       section5Title: "5. Propriété intellectuelle",
       section5Text: "Le nom Clear Terms, le logo, le logiciel et le contenu original sont la propriété intellectuelle de ses créateurs. Vous ne pouvez pas :",
@@ -228,10 +227,27 @@ const translations = {
       section11Title: "11. Modifications de ces conditions",
       section11Text: "Nous pouvons mettre à jour ces Conditions de Service de temps à autre. Si nous apportons des modifications importantes, nous vous en informerons via l'extension avec un délai de préavis de 30 jours. Si vous n'acceptez pas les nouvelles conditions, vous pouvez cesser d'utiliser l'extension en la désinstallant avant l'entrée en vigueur des modifications. L'utilisation continue du service après ce délai constitue votre acceptation des nouvelles conditions.",
 
-      section12Title: "12. Contact",
-      section12Text: "Questions ou préoccupations ? Contactez-nous à : [EMAIL]",
+      section12Title: "12. Paiement et crédits",
+      section12Intro: "Clear Terms fonctionne sur un système de crédits d'analyse. Les 20 premières analyses sont gratuites pour découvrir le service.",
+      section12SubTitle1: "Achat de crédits",
+      section12Item1: "Les crédits sont achetés via notre système de paiement sécurisé et sont associés à votre navigateur.",
+      section12Item2: "Les crédits n'expirent pas et peuvent être utilisés à votre rythme.",
+      section12Item3: "Chaque analyse consomme 1 crédit. Les analyses déjà effectuées par l'utilisateur sont consultables gratuitement dans la limite de 100 analyses historisées.",
+      section12Item4: "Les prix et formules sont disponibles sur la page d'achat et peuvent être modifiés à tout moment avec un préavis de 30 jours pour les modifications significatives.",
+      section12SubTitle2: "Remboursement et annulation",
+      section12Item5: "Les crédits achetés ne sont pas remboursables, sauf en cas de défaut technique majeur du service.",
+      section12Item6: "Si une analyse échoue pour une raison technique imputable au service, le crédit vous sera automatiquement recrédité.",
+      section12Item7: "En cas de litige concernant une transaction, vous disposez d'un délai de 14 jours pour nous contacter.",
+      section12SubTitle3: "Sécurité des paiements",
+      section12Item8: "Tous les paiements sont traités par des prestataires de paiement sécurisés conformes aux normes PCI-DSS.",
+      section12Item9: "Nous ne stockons aucune information bancaire ou de carte de crédit sur nos serveurs.",
+      section12SubTitle4: "Modifications tarifaires",
+      section12End: "Nous nous réservons le droit de modifier nos tarifs à tout moment. Les crédits déjà achetés restent valables et ne sont pas affectés par les changements de prix futurs.",
 
-      lastUpdated: "Dernière mise à jour : 6 octobre 2025"
+      section13Title: "13. Contact",
+      section13Text: "Questions ou préoccupations ? Contactez-nous à : clearterms@outlook.com",
+
+      lastUpdated: "Dernière mise à jour : 20 octobre 2025"
     }
   },
 
@@ -381,7 +397,7 @@ const translations = {
       statusNA: "⚪ N/A: Not mentioned in the document",
 
       scoreTitle: "Score Calculation",
-      scoreText: "The overall score (A-E) is calculated by weighting categories according to their real impact on your rights. Each category has a specific weight: Dispute Resolution (13%), Data Sharing (15%), International Transfers (6%), etc. For each category: green = 2 points, amber = 1 point, red = 0. The final score is normalized between 0 and 1, then converted to a grade (A≥80%, B≥65%, C≥50%, D≥35%, E<35%).",
+      scoreText: "The overall score (A-E) is calculated by weighting categories according to their real impact on your rights. For each category: green = 2 points, amber = 1 point, red = 0. The final score is normalized between 0 and 1, then converted to a grade (A≥80%, B≥65%, C≥50%, D≥35%, E<35%).",
 
       privacyTitle: "Privacy",
       privacyText: "Your data is never stored in an identifiable manner. Analysis is performed in real-time and results are cached anonymously (by content hash) to optimize performance and reduce costs.",
@@ -420,8 +436,7 @@ const translations = {
       section4Title: "4. Accuracy and Limitations",
       section4Intro: "While we aim to provide accurate and up-to-date information:",
       section4Item1: "We do not warrant the completeness, correctness, or legal enforceability of any summary or risk rating provided.",
-      section4Item2: "Terms and conditions change frequently, and our database may not always reflect the most recent version of a given policy.",
-      section4Item3: "Our analysis is based on automated and manual review processes, which may have limitations or edge cases.",
+      section4Item2: "Our analysis is based on automated and manual review processes, which may have limitations or edge cases.",
 
       section5Title: "5. Intellectual Property",
       section5Text: "The Clear Terms name, logo, software, and original content are the intellectual property of its creators. You may not:",
@@ -460,10 +475,27 @@ const translations = {
       section11Title: "11. Changes to These Terms",
       section11Text: "We may update these Terms of Service from time to time. If we make material changes, we will notify you via the extension with a 30-day notice period. If you do not accept the new terms, you may stop using the extension by uninstalling it before the changes take effect. Continued use of the service after this period constitutes your acceptance of the new terms.",
 
-      section12Title: "12. Contact",
-      section12Text: "Questions or concerns? Contact us at: [EMAIL]",
+      section12Title: "12. Payment and Credits",
+      section12Intro: "Clear Terms operates on an analysis credit system. The first 20 analyses are free to discover the service.",
+      section12SubTitle1: "Credit Purchase",
+      section12Item1: "Credits are purchased through our secure payment system and are associated with your browser.",
+      section12Item2: "Credits never expire and can be used at your own pace.",
+      section12Item3: "Each analysis consumes 1 credit. Analyses already performed by the user can be viewed for free up to a limit of 100 historized analyses.",
+      section12Item4: "Prices and packages are available on the purchase page and may be changed at any time with 30 days notice for significant changes.",
+      section12SubTitle2: "Refund and Cancellation",
+      section12Item5: "Purchased credits are non-refundable, except in case of major technical failure of the service.",
+      section12Item6: "If an analysis fails due to a technical issue attributable to the service, the credit will be automatically refunded to you.",
+      section12Item7: "In case of a dispute regarding a transaction, you have 14 days to contact us.",
+      section12SubTitle3: "Payment Security",
+      section12Item8: "All payments are processed by secure payment providers compliant with PCI-DSS standards.",
+      section12Item9: "We do not store any banking or credit card information on our servers.",
+      section12SubTitle4: "Price Changes",
+      section12End: "We reserve the right to modify our prices at any time. Credits already purchased remain valid and are not affected by future price changes.",
 
-      lastUpdated: "Last updated: October 6, 2025"
+      section13Title: "13. Contact",
+      section13Text: "Questions or concerns? Contact us at: clearterms@outlook.com",
+
+      lastUpdated: "Last updated: October 20, 2025"
     }
   }
 };

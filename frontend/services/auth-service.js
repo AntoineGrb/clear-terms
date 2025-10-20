@@ -3,21 +3,30 @@
 // ========================================
 
 /**
- * Récupère ou génère le deviceId
+ * Récupère ou génère le deviceId basé sur le fingerprint du navigateur
  */
 async function getDeviceId() {
   try {
+    // Utiliser le fingerprinting pour un ID stable
+    if (typeof fingerprintService !== 'undefined' && fingerprintService.getStableDeviceId) {
+      const deviceId = await fingerprintService.getStableDeviceId();
+      console.log('[AUTH] DeviceId récupéré:', deviceId.substring(0, 8) + '...');
+      return deviceId;
+    }
+
+    // Fallback si le service de fingerprinting n'est pas chargé
+    console.warn('[AUTH] Service de fingerprinting non disponible, fallback sur storage');
     const result = await chrome.storage.sync.get(['deviceId']);
 
     if (result.deviceId) {
       return result.deviceId;
     }
 
-    // Générer nouveau UUID
+    // Générer nouveau UUID en dernier recours
     const newDeviceId = crypto.randomUUID();
     await chrome.storage.sync.set({ deviceId: newDeviceId });
 
-    console.log('[AUTH] Nouveau deviceId généré:', newDeviceId);
+    console.log('[AUTH] Nouveau deviceId généré (fallback):', newDeviceId);
     return newDeviceId;
 
   } catch (error) {

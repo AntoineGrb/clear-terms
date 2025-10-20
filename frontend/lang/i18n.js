@@ -57,7 +57,15 @@ const translations = {
     // Footer
     about: "À propos",
     terms: "Conditions de Service",
+    contact: "Contact",
     disclaimer: "⚠️ Clear Terms fournit un résumé non-juridique. Consultez toujours le texte original. Les analyses IA peuvent contenir des erreurs.",
+
+    // Token refresh
+    refreshToken: "Support",
+    refreshTokenButton: "Rafraîchir l'authentification",
+    refreshTokenHelp: "En cas d'erreur d'authentification persistante",
+    refreshTokenSuccess: "✅ Authentification rafraîchie !",
+    refreshTokenError: "❌ Erreur lors du rafraîchissement",
 
     // Historique
     lastAnalysis: "Dernière analyse",
@@ -307,7 +315,15 @@ const translations = {
     // Footer
     about: "About",
     terms: "Terms of Service",
+    contact: "Contact",
     disclaimer: "⚠️ Clear Terms provides a non-legal summary. Always consult the original text. AI analyses may contain errors.",
+
+    // Token refresh
+    refreshToken: "Support",
+    refreshTokenButton: "Refresh authentication",
+    refreshTokenHelp: "In case of persistent authentication error",
+    refreshTokenSuccess: "✅ Authentication refreshed!",
+    refreshTokenError: "❌ Error refreshing authentication",
 
     // History
     lastAnalysis: "Last Analysis",

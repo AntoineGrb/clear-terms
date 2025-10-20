@@ -187,6 +187,7 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
         lastAccessedAt: now
       });
       console.log(`💾 Nouvelle entrée cache créée pour: ${url}`);
+      console.log('=== SCAN END===')
     }
 
     job.result = report;

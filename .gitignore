@@ -36,6 +36,5 @@ backend/schema.json
 # Claude
 .claude
 
-# Security
-SECURITY.md
-DEPLOYMENT.md
+# Docs
+docs

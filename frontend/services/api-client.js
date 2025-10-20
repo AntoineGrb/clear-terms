@@ -60,7 +60,7 @@ async function getReportFromHistory(url, userLanguage) {
  * Lance une nouvelle analyse (cache backend ou IA) - CONSOMME 1 CRÉDIT
  * @returns {Promise<Object>} Le rapport d'analyse
  */
-async function performAnalysis(url, content, userLanguage) {
+async function performAnalysis(url, content, userLanguage, retryCount = 0) {
   try {
     console.log('🚀 [API] Lancement d\'une nouvelle analyse (cache ou IA)...');
 
@@ -93,27 +93,45 @@ async function performAnalysis(url, content, userLanguage) {
         throw quotaErr;
       }
 
-      // Gestion du token expiré : on rafraîchit automatiquement
-      if (error.error === 'TOKEN_EXPIRED' || error.error === 'NO_TOKEN') {
-        console.warn('[API] Token expiré/manquant, tentative de refresh...');
+      // ========================================
+      // GESTION DES ERREURS D'AUTHENTIFICATION
+      // Règle : deviceId = source de vérité, JWT = cache jetable
+      // ========================================
+
+      const authErrors = ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'NO_TOKEN', 'DEVICE_MISMATCH'];
+
+      if (authErrors.includes(error.error) && retryCount === 0) {
+        // Premier essai échoué → Renouveler le token automatiquement
+        console.warn('[API] 🔑 Erreur auth:', error.error);
+        console.warn('[API] → Le token est invalide/expiré, mais deviceId fait foi');
+        console.warn('[API] → Renouvellement automatique du token via /register...');
+
+        // Cas DEVICE_MISMATCH : Supprimer le token local corrompu
+        if (error.error === 'DEVICE_MISMATCH') {
+          console.warn('[API] ⚠️  Token contient un autre deviceId, suppression...');
+          await chrome.storage.sync.remove(['jwt']);
+        }
+
+        // Renouveler le token (appelle /register avec deviceId)
+        // Backend vérifie deviceId → retrouve le compte existant → génère nouveau token
         const refreshed = await authService.handleExpiredToken();
+
         if (refreshed) {
-          console.log('[API] Token rafraîchi, nouvelle tentative...');
-          return await performAnalysis(url, content, userLanguage);
+          console.log('[API] ✅ Nouveau token obtenu, retry de la requête...');
+          return await performAnalysis(url, content, userLanguage, retryCount + 1);
         } else {
-          const refreshErr = new Error('Impossible de rafraîchir le token. Veuillez recharger l\'extension.');
+          const refreshErr = new Error('Impossible de renouveler le token');
           refreshErr.isAuthError = true;
           throw refreshErr;
         }
       }
 
-      // Gestion du token invalide/corrompu : NE PAS rafraîchir automatiquement
-      // C'est suspect (token modifié manuellement), on bloque
-      if (error.error === 'INVALID_TOKEN' || error.error === 'DEVICE_MISMATCH') {
-        console.error('[API] Token invalide ou deviceId mismatch - blocage');
-        const invalidErr = new Error('Token invalide. Veuillez supprimer et réinstaller l\'extension.');
-        invalidErr.isAuthError = true;
-        throw invalidErr;
+      // Si retry a déjà été fait et ça échoue encore → Erreur définitive
+      if (authErrors.includes(error.error) && retryCount > 0) {
+        console.error('[API] ❌ Échec après renouvellement - Problème persistant');
+        const authErr = new Error('Erreur d\'authentification persistante. Utilisez "Rafraîchir l\'authentification" dans les paramètres.');
+        authErr.isAuthError = true;
+        throw authErr;
       }
 
       const err = new Error(error.error || 'Erreur lors du lancement de l\'analyse');

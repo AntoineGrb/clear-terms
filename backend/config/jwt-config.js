@@ -4,8 +4,8 @@ const crypto = require('crypto');
 // IMPORTANT: En production, stocker cette clé dans une variable d'environnement
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 
-// Durée de validité du JWT (7 jours)
-const JWT_EXPIRATION = '7d';
+// Durée de validité du JWT (30 jours)
+const JWT_EXPIRATION = '30d';
 
 module.exports = {
   JWT_SECRET,

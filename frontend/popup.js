@@ -485,7 +485,6 @@ function hideAllPages() {
   document.getElementById('settingsPage').classList.add('hidden');
   document.getElementById('aboutPage').classList.add('hidden');
   document.getElementById('termsPage').classList.add('hidden');
-  document.getElementById('contactPage').classList.add('hidden');
 }
 
 /**
@@ -509,11 +508,6 @@ function showAboutPage() {
 function showTermsPage() {
   hideAllPages();
   document.getElementById('termsPage').classList.remove('hidden');
-}
-
-function showContactPage() {
-  hideAllPages();
-  document.getElementById('contactPage').classList.remove('hidden');
 }
 
 // Event listeners pour la navigation
@@ -543,15 +537,6 @@ document.getElementById('backFromTerms').addEventListener('click', () => {
   showMainPage();
 });
 
-// Navigation vers Contact
-document.getElementById('contactButton').addEventListener('click', () => {
-  showContactPage();
-});
-
-document.getElementById('backFromContact').addEventListener('click', () => {
-  showMainPage();
-});
-
 // Navigation vers l'historique
 document.getElementById('historyLink').addEventListener('click', (e) => {
   e.preventDefault();
@@ -562,57 +547,6 @@ document.getElementById('historyLink').addEventListener('click', (e) => {
 document.getElementById('buyCreditsButton').addEventListener('click', (e) => {
   e.preventDefault();
   chrome.tabs.create({ url: chrome.runtime.getURL('pages/billing/billing.html') });
-});
-
-// ========================================
-// Formulaire de contact
-// ========================================
-
-document.getElementById('contactForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  const form = e.target;
-  const submitBtn = document.getElementById('contactSubmitBtn');
-  const statusDiv = document.getElementById('contactStatus');
-  const lang = document.documentElement.lang || 'fr';
-
-  // Récupérer les données du formulaire
-  const formData = {
-    email: form.email.value.trim(),
-    subject: form.subject.value.trim(),
-    message: form.message.value.trim()
-  };
-
-  // Désactiver le bouton et afficher le statut d'envoi
-  submitBtn.disabled = true;
-  statusDiv.textContent = i18n.t('contactSending', lang);
-  statusDiv.className = 'text-xs text-blue-600';
-
-  try {
-    // Envoyer via mailto (solution simple sans backend)
-    const mailtoLink = `mailto:antoine.grubert@outlook.fr?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(`From: ${formData.email}\n\n${formData.message}`)}`;
-    window.open(mailtoLink, '_blank');
-
-    // Afficher le succès
-    statusDiv.textContent = i18n.t('contactSuccess', lang);
-    statusDiv.className = 'text-xs text-green-600';
-
-    // Réinitialiser le formulaire
-    form.reset();
-
-    // Retour à la page principale après 2 secondes
-    setTimeout(() => {
-      showMainPage();
-      statusDiv.textContent = '';
-    }, 2000);
-
-  } catch (error) {
-    console.error('Erreur envoi formulaire contact:', error);
-    statusDiv.textContent = i18n.t('contactError', lang);
-    statusDiv.className = 'text-xs text-red-600';
-  } finally {
-    submitBtn.disabled = false;
-  }
 });
 
 // ========================================
@@ -632,6 +566,42 @@ document.getElementById('toastPosition').addEventListener('change', (e) => {
 // Event listener pour la durée du toast
 document.getElementById('toastDuration').addEventListener('change', (e) => {
   chrome.storage.local.set({ toastDuration: parseInt(e.target.value) });
+});
+
+// Event listener pour rafraîchir le token
+document.getElementById('refreshTokenButton').addEventListener('click', async () => {
+  const button = document.getElementById('refreshTokenButton');
+  const statusDiv = document.getElementById('refreshTokenStatus');
+  const lang = document.documentElement.lang || 'fr';
+
+  try {
+    button.disabled = true;
+    statusDiv.textContent = '⏳ Rafraîchissement...';
+    statusDiv.className = 'mt-2 text-xs text-blue-600';
+
+    // Supprimer le JWT actuel et forcer un nouveau register
+    await chrome.storage.sync.remove(['jwt']);
+
+    // Appeler registerUser qui va retrouver le compte existant via deviceId
+    const result = await authService.registerUser();
+
+    statusDiv.textContent = i18n.t('refreshTokenSuccess', lang) + ` (${result.remainingScans} crédits)`;
+    statusDiv.className = 'mt-2 text-xs text-green-600';
+
+    // Mettre à jour l'affichage des crédits
+    await authService.updateCredits(result.remainingScans);
+
+    setTimeout(() => {
+      statusDiv.textContent = '';
+    }, 3000);
+
+  } catch (error) {
+    console.error('[SETTINGS] Erreur refresh token:', error);
+    statusDiv.textContent = i18n.t('refreshTokenError', lang);
+    statusDiv.className = 'mt-2 text-xs text-red-600';
+  } finally {
+    button.disabled = false;
+  }
 });
 
 // Event listener pour copier l'URL

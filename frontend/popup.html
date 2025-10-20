@@ -149,6 +149,20 @@
             <option value="0" data-i18n="toastDurationManual">Illimité (cliquer pour fermer)</option>
           </select>
         </div>
+
+        <!-- Rafraîchir le token (Debug/Support) -->
+        <div class="pt-3 border-t border-gray-200">
+          <label class="block mb-2 text-sm font-medium text-gray-700" data-i18n="refreshToken">
+            Support
+          </label>
+          <button id="refreshTokenButton" class="w-full px-3 py-2 text-xs font-medium text-white transition-colors bg-gray-600 rounded-md hover:bg-gray-700">
+            <span data-i18n="refreshTokenButton">Rafraîchir l'authentification</span>
+          </button>
+          <p class="mt-1 text-xs text-gray-500" data-i18n="refreshTokenHelp">
+            En cas d'erreur d'authentification persistante
+          </p>
+          <div id="refreshTokenStatus" class="mt-2 text-xs"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -384,6 +398,7 @@
   <script src="utils/grading.js"></script>
   <script src="utils/translations.js"></script>
   <script src="utils/hash.js"></script>
+  <script src="utils/fingerprint.js"></script>
   <script src="error/error-handler.js"></script>
   <script src="services/auth-service.js"></script>
   <script src="services/api-client.js"></script>

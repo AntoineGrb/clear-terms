@@ -4,7 +4,7 @@
 
 /**
  * Fonction principale de détection, lancée au chargement de la page
- * Détecte et lance l'analyse automatique si CGU détectées
+ * Détecte les CGU et affiche un toast approprié (avec ou sans rapport dans l'historique)
  */
 async function detectAndAnalyze() {
   try {
@@ -36,17 +36,33 @@ async function detectAndAnalyze() {
 
     console.log('[Clear Terms] ✅ CGU détectée');
 
-    // Afficher le toast immédiatement
-    createToast('backend'); // Toujours "Nouvelle analyse CGU" par défaut
+    // ---- Étape 3: Vérifier l'historique utilisateur -----
+    const userLanguage = await chrome.storage.local.get(['userLanguage']).then(d => d.userLanguage || 'fr');
 
-    // Lancer l'analyse en arrière-plan
+    console.log('[Clear Terms] 🌐 URL (AUTO):', url);
+    console.log('[Clear Terms] 🗣️ Langue (AUTO):', userLanguage);
+
+    // Demander au background script de vérifier l'historique par URL
     chrome.runtime.sendMessage({
-      type: 'AUTO_ANALYZE',
+      type: 'CHECK_HISTORY',
       url: url,
-      content: content
+      language: userLanguage
+    }, (response) => {
+      if (response && response.found) {
+        // Rapport trouvé dans l'historique
+        console.log('[Clear Terms] 📋 Rapport trouvé dans l\'historique');
+        console.log('[Clear Terms] 📊 Site du rapport:', response.report.metadata?.site_name);
+        console.log('[Clear Terms] 📊 URL du rapport:', response.report.metadata?.analyzed_url);
+        createToast('found', url, null, response.report);
+      } else {
+        // Pas de rapport dans l'historique
+        console.log('[Clear Terms] 🆕 Aucun rapport dans l\'historique');
+        createToast('detected', url, null, content);
+      }
     });
+
   } catch (error) {
-    // Erreur silencieuse pour l'utilisateur
+    console.error('[Clear Terms] Erreur détection:', error);
   }
 }
 

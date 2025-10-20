@@ -18,6 +18,8 @@ const translations = {
     statusComplete: "Analyse terminée !",
     statusError: "Erreur :",
     notCGUPage: "Cette page ne contient pas de conditions générales ou de mentions légales analysables.",
+    analysisFoundInHistory: "Analyse trouvée pour ce site",
+    relaunCharelinkAnalysis: "Cliquer pour relancer l'analyse (1 crédit)",
 
     // Messages d'erreur (pour référence - gérés par error-handler.js)
     errorNetwork: "Impossible de se connecter au serveur. Vérifiez votre connexion internet.",
@@ -266,6 +268,8 @@ const translations = {
     statusComplete: "Analysis complete!",
     statusError: "Error:",
     notCGUPage: "This page does not contain analyzable terms of service or legal notices.",
+    analysisFoundInHistory: "Analysis found for this site",
+    relaunCharelinkAnalysis: "Click to relaunch analysis (1 credit)",
 
     // Error messages (for reference - handled by error-handler.js)
     errorNetwork: "Cannot connect to server. Check your internet connection.",

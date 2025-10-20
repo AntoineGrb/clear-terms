@@ -7,8 +7,48 @@
 // Event Handlers
 // ========================================
 
+// ========================================
+// Vérifier les actions en attente depuis le toast
+// ========================================
+(async () => {
+  const { pendingToastAction } = await chrome.storage.local.get(['pendingToastAction']);
+
+  if (pendingToastAction) {
+    // Vérifier que l'action n'est pas trop vieille (max 5 secondes)
+    const age = Date.now() - pendingToastAction.timestamp;
+    if (age < 5000) {
+      console.log('📋 [POPUP] Action en attente depuis le toast:', pendingToastAction.type);
+
+      if (pendingToastAction.type === 'DISPLAY_REPORT') {
+        // Afficher le rapport
+        console.log('📊 [POPUP] Affichage du rapport depuis l\'historique');
+        console.log('📊 [POPUP] Hash du rapport:', pendingToastAction.report?.metadata?.content_hash);
+        console.log('📊 [POPUP] Site:', pendingToastAction.report?.metadata?.site_name);
+        displayReport(pendingToastAction.report);
+      } else if (pendingToastAction.type === 'PERFORM_ANALYSIS') {
+        // Lancer l'analyse
+        console.log('🚀 [POPUP] Lancement de l\'analyse depuis le toast');
+        console.log('🔗 [POPUP] URL:', pendingToastAction.url);
+        await handleToastAnalysisRequest(pendingToastAction.url, pendingToastAction.content);
+      }
+    } else {
+      console.warn('⚠️ [POPUP] Action trop vieille, ignorée (age: ' + age + 'ms)');
+    }
+
+    // Nettoyer l'action en attente
+    await chrome.storage.local.remove(['pendingToastAction']);
+  }
+})();
+
 // Handler pour le bouton d'analyse
 document.getElementById('scanButton').addEventListener('click', async () => {
+  await handleManualAnalysis();
+});
+
+/**
+ * Gère l'analyse manuelle depuis le bouton
+ */
+async function handleManualAnalysis(forceNew = false) {
   const button = document.getElementById('scanButton');
   button.disabled = true;
   button.classList.add('opacity-50', 'cursor-not-allowed');
@@ -16,18 +56,6 @@ document.getElementById('scanButton').addEventListener('click', async () => {
   let currentUrl = 'unknown';
 
   try {
-    // Vérifier les crédits AVANT de lancer l'analyse
-    const hasCredits = await authService.hasCredits();
-
-    if (!hasCredits) {
-      const lang = await loadLanguagePreference();
-      const message = i18n.t('errorNoCredits', lang);
-      updateStatus(`ERROR:${message}`, 'warning');
-      button.disabled = false;
-      button.classList.remove('opacity-50', 'cursor-not-allowed');
-      return;
-    }
-
     updateStatus('statusExtracting', 'loading');
 
     // Extraire le contenu
@@ -61,47 +89,69 @@ document.getElementById('scanButton').addEventListener('click', async () => {
       // Continuer quand même l'analyse en cas d'erreur de validation
     }
 
-    updateStatus('statusSending', 'loading');
-
     // Récupérer la préférence de langue
     const userLanguage = await loadLanguagePreference();
 
-    // Lancer l'analyse (cherche d'abord dans l'historique)
-    const scanResult = await startScan(url, text, userLanguage);
-    const { job_id, fromHistory, report: historyReport } = scanResult;
+    console.log('🌐 [POPUP MANUAL] URL:', url);
+    console.log('🗣️ [POPUP MANUAL] Langue:', userLanguage);
 
-    // Si le rapport vient de l'historique local
-    if (fromHistory && historyReport) {
-      console.log('✅ [POPUP] Rapport récupéré depuis l\'historique local');
-      updateStatus('statusComplete', 'success');
+    // Vérifier d'abord l'historique par URL (sauf si forceNew = true)
+    if (!forceNew) {
+      updateStatus('statusSending', 'loading');
+      const historyReport = await getReportFromHistory(url, userLanguage);
 
-      chrome.runtime.sendMessage({
-        type: 'ANALYSIS_COMPLETE',
-        url,
-        report: historyReport,
-        fromHistory: true
-      });
+      if (historyReport) {
+        console.log('✅ [POPUP MANUAL] Rapport trouvé dans l\'historique');
+        console.log('📊 [POPUP MANUAL] Site du rapport:', historyReport.metadata?.site_name);
+        console.log('📊 [POPUP MANUAL] URL du rapport:', historyReport.metadata?.analyzed_url);
 
-      // Afficher directement le rapport
-      displayReport(historyReport);
+        // Afficher le rapport
+        displayReport(historyReport);
+
+        // Afficher le message spécial avec lien de relance
+        showHistoryFoundStatus(url, text, userLanguage);
+
+        button.disabled = false;
+        button.classList.remove('opacity-50', 'cursor-not-allowed');
+        return;
+      } else {
+        console.log('❌ [POPUP MANUAL] Aucun rapport trouvé dans l\'historique');
+      }
+    }
+
+    // Pas de rapport dans l'historique OU relance forcée : lancer une analyse
+    console.log('🚀 [POPUP] Lancement d\'une nouvelle analyse');
+
+    // Vérifier les crédits AVANT de lancer l'analyse
+    const hasCredits = await authService.hasCredits();
+
+    if (!hasCredits) {
+      const lang = await loadLanguagePreference();
+      const message = i18n.t('errorNoCredits', lang);
+      updateStatus(`ERROR:${message}`, 'warning');
+      button.disabled = false;
+      button.classList.remove('opacity-50', 'cursor-not-allowed');
       return;
     }
 
-    // Sinon, c'est une nouvelle analyse (cache ou IA)
+    updateStatus('statusAnalyzing', 'loading');
+
+    // Lancer l'analyse (cache ou IA)
+    const scanResult = await performAnalysis(url, text, userLanguage);
+    const { job_id } = scanResult;
+
     chrome.runtime.sendMessage({
       type: 'ANALYSIS_STARTED',
       url,
       jobId: job_id
     });
 
-    updateStatus('statusAnalyzing', 'loading');
-
     // Attendre le résultat via polling
     const report = await pollJob(job_id);
 
     updateStatus('statusComplete', 'success');
 
-    // Ajouter au reportsHistory seulement pour les nouvelles analyses
+    // Ajouter au reportsHistory
     await addToReportsHistory(report);
 
     // Logger le rapport complet dans le service worker
@@ -137,7 +187,34 @@ document.getElementById('scanButton').addEventListener('click', async () => {
     button.disabled = false;
     button.classList.remove('opacity-50', 'cursor-not-allowed');
   }
-});
+}
+
+/**
+ * Affiche un message spécial quand un rapport est trouvé dans l'historique
+ */
+function showHistoryFoundStatus(url, content, userLanguage) {
+  const statusDiv = document.getElementById('status');
+  const lang = document.documentElement.lang || 'fr';
+
+  const message = i18n.t('analysisFoundInHistory', lang);
+  const linkText = i18n.t('relaunCharelinkAnalysis', lang);
+
+  statusDiv.innerHTML = `
+    <div class="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+      <p class="text-xs text-blue-800 mb-2">${message}</p>
+      <a href="#" id="relaunchAnalysisLink" class="text-xs font-medium text-primary-600 hover:text-primary-700 underline">
+        ${linkText}
+      </a>
+    </div>
+  `;
+
+  // Attacher l'événement au lien
+  document.getElementById('relaunchAnalysisLink').addEventListener('click', async (e) => {
+    e.preventDefault();
+    statusDiv.innerHTML = ''; // Nettoyer le message
+    await handleManualAnalysis(true); // Forcer une nouvelle analyse
+  });
+}
 
 // ========================================
 // Navigation
@@ -262,7 +339,7 @@ document.getElementById('copyUrlButton').addEventListener('click', async (e) => 
 // ========================================
 
 // Charger le dernier rapport et la langue au démarrage
-chrome.storage.local.get(['lastReport'], async (result) => {
+chrome.storage.local.get(['lastReport', 'pendingToastAction'], async (result) => {
   // Toujours détecter automatiquement la langue du navigateur
   const lang = detectBrowserLanguage();
 
@@ -277,7 +354,7 @@ chrome.storage.local.get(['lastReport'], async (result) => {
     const toastPosition = toastResult.toastPosition || 'bottom-right';
     document.getElementById('toastPosition').value = toastPosition;
 
-    const toastDuration = toastResult.toastDuration !== undefined ? toastResult.toastDuration : 5000;
+    const toastDuration = toastResult.toastDuration !== undefined ? toastResult.toastDuration : 30000;
     document.getElementById('toastDuration').value = toastDuration.toString();
   });
 
@@ -291,6 +368,13 @@ chrome.storage.local.get(['lastReport'], async (result) => {
   authService.getJWT().catch((error) => {
     console.error('[POPUP] Erreur initialisation auth:', error);
   });
+
+  // Si une action depuis le toast est en attente, ne pas charger le lastReport
+  // (le rapport sera affiché par le code de gestion de pendingToastAction)
+  if (result.pendingToastAction) {
+    console.log('[POPUP] Action toast en attente, skip du chargement automatique du lastReport');
+    return;
+  }
 
   // Vérifier si une analyse auto est en cours pour l'onglet actif
   try {
@@ -386,5 +470,100 @@ async function addToReportsHistory(report) {
 
   } catch (error) {
     // Erreur silencieuse
+  }
+}
+
+// ========================================
+// Message Handlers - Réception depuis content-script/background
+// ========================================
+
+/**
+ * Écouter les messages depuis le content-script (toast) et background
+ */
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'DISPLAY_REPORT') {
+    // Afficher un rapport depuis l'historique (déclenché par le toast "Voir")
+    displayReport(message.report);
+    sendResponse({ success: true });
+  } else if (message.type === 'PERFORM_ANALYSIS') {
+    // Lancer une analyse depuis le toast "Analyser"
+    handleToastAnalysisRequest(message.url, message.content).then(() => {
+      sendResponse({ success: true });
+    }).catch((error) => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true; // Async response
+  }
+});
+
+/**
+ * Gère une demande d'analyse depuis le toast
+ */
+async function handleToastAnalysisRequest(url, content) {
+  const button = document.getElementById('scanButton');
+
+  try {
+    // Désactiver le bouton pendant l'analyse
+    button.disabled = true;
+    button.classList.add('opacity-50', 'cursor-not-allowed');
+
+    const userLanguage = await loadLanguagePreference();
+
+    // Vérifier les crédits
+    const hasCredits = await authService.hasCredits();
+
+    if (!hasCredits) {
+      const lang = await loadLanguagePreference();
+      const message = i18n.t('errorNoCredits', lang);
+      updateStatus(`ERROR:${message}`, 'warning');
+      button.disabled = false;
+      button.classList.remove('opacity-50', 'cursor-not-allowed');
+      return;
+    }
+
+    updateStatus('statusAnalyzing', 'loading');
+
+    // Lancer l'analyse (cache ou IA)
+    const scanResult = await performAnalysis(url, content, userLanguage);
+    const { job_id } = scanResult;
+
+    chrome.runtime.sendMessage({
+      type: 'ANALYSIS_STARTED',
+      url,
+      jobId: job_id
+    });
+
+    // Attendre le résultat via polling
+    const report = await pollJob(job_id);
+
+    updateStatus('statusComplete', 'success');
+
+    // Ajouter au reportsHistory
+    await addToReportsHistory(report);
+
+    // Logger le rapport complet dans le service worker
+    chrome.runtime.sendMessage({
+      type: 'ANALYSIS_COMPLETE',
+      url,
+      report
+    });
+
+    // Afficher le rapport
+    displayReport(report);
+
+  } catch (error) {
+    const lang = await loadLanguagePreference();
+
+    if (error.message === 'QUOTA_EXCEEDED' || error.isQuotaError) {
+      const message = i18n.t('errorNoCredits', lang);
+      updateStatus(`ERROR:${message}`, 'warning');
+    } else {
+      const formattedError = formatErrorForUser(error, lang);
+      updateStatus(`ERROR:${formattedError.message}`, 'error');
+    }
+  } finally {
+    // Réactiver le bouton
+    button.disabled = false;
+    button.classList.remove('opacity-50', 'cursor-not-allowed');
   }
 }

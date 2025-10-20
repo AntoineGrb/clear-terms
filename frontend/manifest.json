@@ -25,6 +25,7 @@
     {
       "matches": ["<all_urls>"],
       "js": [
+        "utils/hash.js",
         "content-script/config.js",
         "content-script/exclusions.js",
         "content-script/extraction.js",

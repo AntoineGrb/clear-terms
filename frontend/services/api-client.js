@@ -35,29 +35,35 @@ async function extractPageContent() {
 }
 
 /**
- * Lance une analyse
+ * Récupère un rapport depuis l'historique utilisateur uniquement (GRATUIT)
+ * @returns {Promise<Object|null>} Le rapport ou null si non trouvé
  */
-async function startScan(url, content, userLanguage) {
+async function getReportFromHistory(url, userLanguage) {
   try {
-    // 1. CHERCHER D'ABORD DANS L'HISTORIQUE LOCAL
-    const contentHash = await hashUtils.generateContentHash(content);
-    const historyReport = await hashUtils.findReportInHistory(contentHash, userLanguage);
+    console.log('🔍 [API] Recherche dans l\'historique local...');
+    const historyReport = await hashUtils.findReportInHistory(url, userLanguage);
 
     if (historyReport) {
-      console.log('✅ [API] Rapport trouvé dans l\'historique local, pas d\'appel backend');
-      // Retourner un objet simulant la réponse backend avec job_id fictif
-      // et indiquer qu'il vient de l'historique
-      return {
-        job_id: 'history_' + Date.now(),
-        remainingScans: await authService.getRemainingCredits(), // Pas de débit
-        fromHistory: true,
-        report: historyReport
-      };
+      console.log('✅ [API] Rapport trouvé dans l\'historique local');
+      return historyReport;
     }
 
-    console.log('❌ [API] Rapport non trouvé dans l\'historique, appel backend...');
+    console.log('❌ [API] Rapport non trouvé dans l\'historique');
+    return null;
+  } catch (error) {
+    console.error('[API] Erreur lors de la recherche dans l\'historique:', error);
+    return null;
+  }
+}
 
-    // 2. SI PAS DANS L'HISTORIQUE, APPELER LE BACKEND (cache ou IA)
+/**
+ * Lance une nouvelle analyse (cache backend ou IA) - CONSOMME 1 CRÉDIT
+ * @returns {Promise<Object>} Le rapport d'analyse
+ */
+async function performAnalysis(url, content, userLanguage) {
+  try {
+    console.log('🚀 [API] Lancement d\'une nouvelle analyse (cache ou IA)...');
+
     // Récupérer deviceId et JWT
     const deviceId = await authService.getDeviceId();
     const jwt = await authService.getJWT();
@@ -93,7 +99,7 @@ async function startScan(url, content, userLanguage) {
         const refreshed = await authService.handleExpiredToken();
         if (refreshed) {
           console.log('[API] Token rafraîchi, nouvelle tentative...');
-          return await startScan(url, content, userLanguage);
+          return await performAnalysis(url, content, userLanguage);
         } else {
           const refreshErr = new Error('Impossible de rafraîchir le token. Veuillez recharger l\'extension.');
           refreshErr.isAuthError = true;

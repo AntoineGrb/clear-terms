@@ -292,13 +292,57 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.error('🔗 URL:', message.url);
   }
 
-  // Analyse automatique (depuis le content script)
-  if (message.type === 'AUTO_ANALYZE') {
-    console.log('🤖 Demande d\'analyse automatique reçue');
-    const tabId = sender.tab?.id;
-    if (tabId) {
-      handleAutoAnalysis(message.url, message.content, tabId);
-    }
+  // Vérifier l'historique (depuis le content script / detection.js)
+  if (message.type === 'CHECK_HISTORY') {
+    console.log('🔍 Vérification de l\'historique pour URL:', message.url);
+    (async () => {
+      const report = await hashUtils.findReportInHistory(message.url, message.language);
+      if (report) {
+        console.log('✅ Rapport trouvé dans l\'historique');
+        sendResponse({ found: true, report: report });
+      } else {
+        console.log('❌ Rapport non trouvé dans l\'historique');
+        sendResponse({ found: false });
+      }
+    })();
+    return true; // Async response
+  }
+
+  // Afficher un rapport depuis l'historique (depuis le toast)
+  if (message.type === 'DISPLAY_REPORT') {
+    console.log('📋 Demande d\'affichage d\'un rapport depuis l\'historique');
+    // Stocker le rapport temporairement
+    (async () => {
+      await chrome.storage.local.set({
+        pendingToastAction: {
+          type: 'DISPLAY_REPORT',
+          report: message.report,
+          timestamp: Date.now()
+        }
+      });
+      chrome.action.openPopup();
+      sendResponse({ received: true });
+    })();
+    return true;
+  }
+
+  // Lancer une analyse depuis le toast
+  if (message.type === 'PERFORM_ANALYSIS') {
+    console.log('🚀 Demande d\'analyse depuis le toast');
+    // Stocker les données d'analyse temporairement
+    (async () => {
+      await chrome.storage.local.set({
+        pendingToastAction: {
+          type: 'PERFORM_ANALYSIS',
+          url: message.url,
+          content: message.content,
+          timestamp: Date.now()
+        }
+      });
+      chrome.action.openPopup();
+      sendResponse({ received: true });
+    })();
+    return true;
   }
 
   // Ouvrir la popup (depuis le toast)

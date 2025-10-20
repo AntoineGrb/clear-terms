@@ -34,7 +34,7 @@
     </div>
 
     <!-- Titre "Dernière analyse" -->
-    <h3 id="lastAnalysisTitle" class="hidden mb-2 text-sm font-medium text-gray-700" data-i18n="lastAnalysis">Dernière analyse</h3>
+    <h3 id="lastAnalysisTitle" class="hidden mb-2 text-sm font-medium text-gray-700" data-i18n="lastAnalysis">Dernière analyse consultée</h3>
 
     <!-- Section Rapport (accordéon) -->
     <div id="reportSection" class="hidden overflow-hidden transition-shadow bg-white rounded-lg shadow-md cursor-pointer hover:shadow-lg">
@@ -143,11 +143,10 @@
             Durée d'affichage (secondes)
           </label>
           <select id="toastDuration" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
-            <option value="3000">3 secondes</option>
-            <option value="5000" selected>5 secondes</option>
-            <option value="7000">7 secondes</option>
+            <option value="5000">5 secondes</option>
             <option value="10000">10 secondes</option>
-            <option value="0" data-i18n="toastDurationManual">Manuel (cliquer pour fermer)</option>
+            <option value="30000" selected>30 secondes</option>
+            <option value="0" data-i18n="toastDurationManual">Illimité (cliquer pour fermer)</option>
           </select>
         </div>
       </div>

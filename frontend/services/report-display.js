@@ -105,6 +105,7 @@ function displayReport(report) {
   // Afficher la section rapport et le titre + lien
   document.getElementById('reportSection').classList.remove('hidden');
   document.getElementById('lastAnalysisTitle').classList.remove('hidden');
+  document.getElementById('historyLink').classList.remove('hidden');
   document.getElementById('historyLinkContainer').classList.remove('hidden');
 
   // Le contenu est déplié par défaut

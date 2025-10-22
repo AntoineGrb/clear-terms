@@ -212,7 +212,7 @@ class UserService {
       throw new Error('deviceId is required');
     }
 
-    const { stripePaymentIntentId, amount, currency = 'eur', status = 'completed' } = purchaseData;
+    const { stripePaymentIntentId, amount, status = 'completed' } = purchaseData;
 
     if (!stripePaymentIntentId || !amount) {
       throw new Error('stripePaymentIntentId and amount are required');
@@ -230,28 +230,30 @@ class UserService {
       // Calculer les scans à ajouter en fonction du montant
       const scansToAdd = this._calculateScansFromAmount(amount);
 
-      // Créer l'entrée d'achat
-      const purchase = {
-        purchaseId: `purchase_${Date.now()}`,
-        stripePaymentIntentId,
-        amount,
-        currency,
-        purchasedAt: new Date().toISOString(),
-        status
-      };
+      // Sauvegarder les crédits avant l'ajout
+      const creditsBefore = user.remainingScans;
 
       // Initialiser purchaseHistory si inexistant
       if (!user.purchaseHistory) {
         user.purchaseHistory = [];
       }
 
-      // Ajouter l'achat à l'historique
-      user.purchaseHistory.push(purchase);
-
       // Ajouter les crédits si le paiement est réussi
       if (status === 'completed') {
         user.remainingScans += scansToAdd;
         console.log(`💳 [USER] ${scansToAdd} scans ajoutés pour ${deviceId} (${amount}€)`);
+
+        // Créer l'entrée d'achat simplifiée (focus sur les crédits)
+        const purchase = {
+          paymentIntentId: stripePaymentIntentId,
+          scansAdded: scansToAdd,
+          creditsBefore,
+          creditsAfter: user.remainingScans,
+          at: new Date().toISOString()
+        };
+
+        // Ajouter l'achat à l'historique
+        user.purchaseHistory.push(purchase);
       }
 
       user.lastUsedAt = new Date().toISOString();
@@ -275,7 +277,7 @@ class UserService {
     // Mapping des montants vers les nombres de scans
     const pricingMap = {
       2: 20,    // Pack Standard: 2€ = 20 scans
-      5: 100,   // Pack Plus: 5€ = 100 scans
+      5: 100,   // Pack Confort: 5€ = 100 scans
       20: 1000  // Pack Pro: 20€ = 1000 scans
     };
 

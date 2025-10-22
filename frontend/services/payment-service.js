@@ -14,7 +14,7 @@ const PRICING_PLANS = {
     scans: 20,
     priceId: 'prod_THb6dURyJ4RGHk' // À remplacer par votre vrai Price ID
   },
-  confort: {
+  comfort: {
     name: 'Pack Confort',
     amount: 5,
     scans: 100,

@@ -44,8 +44,9 @@ router.post('/create-checkout-session', verifyJWT, async (req, res) => {
       });
     }
 
-    // URLs de redirection (à adapter selon votre configuration)
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+    // URLs de redirection vers l'extension Chrome
+    const extensionId = process.env.CHROME_EXTENSION_ID || 'gfjdheoldmigelnnmkdagpkfacofjkog';
+    const baseUrl = `chrome-extension://${extensionId}`;
     const successUrl = `${baseUrl}/pages/payment-success.html?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/pages/payment-error.html`;
 
@@ -93,8 +94,9 @@ router.post('/create-checkout-session', verifyJWT, async (req, res) => {
  * Webhook Stripe pour traiter les événements de paiement
  *
  * Important: Ce endpoint doit être accessible sans JWT
+ * Le raw body est déjà géré dans server.js
  */
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   try {
     console.log('\n==================== STRIPE WEBHOOK ====================');
 

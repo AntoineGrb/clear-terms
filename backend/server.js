@@ -42,6 +42,12 @@ app.use(helmet({
 }));
 
 app.use(cors());
+
+// IMPORTANT: Le webhook Stripe doit recevoir le raw body
+// On utilise express.raw() UNIQUEMENT pour cette route
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+// Toutes les autres routes utilisent express.json()
 app.use(express.json({ limit: '10mb' }));
 
 // Rate limiting pour /scan (10 requêtes par minute par IP)

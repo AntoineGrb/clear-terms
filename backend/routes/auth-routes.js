@@ -23,7 +23,6 @@ function isValidUUID(uuid) {
  */
 router.post('/register', async (req, res) => {
   try {
-    console.log('\n==================== AUTH: REGISTER/LOGIN ====================');
     const { deviceId } = req.body;
 
     // Validation du deviceId
@@ -49,7 +48,7 @@ router.post('/register', async (req, res) => {
       user = await userService.createUser(deviceId);
       console.log(`[AUTH] New user registered: ${deviceId}`);
     } else {
-      console.log(`[AUTH] Existing user logged in: ${deviceId}`);
+      console.log(`[AUTH] Existing user deviceId logged in: ${deviceId}`);
     }
 
     // Générer le JWT
@@ -65,6 +64,7 @@ router.post('/register', async (req, res) => {
     res.json({
       jwt: token,
       remainingScans: user.remainingScans,
+      supportKey: user.supportKey,
       createdAt: user.createdAt
     });
 
@@ -109,6 +109,7 @@ router.get('/credits', verifyJWT, async (req, res) => {
     res.json({
       remainingScans: user.remainingScans,
       totalScansUsed: user.totalScansUsed,
+      supportKey: user.supportKey,
       plan: user.plan
     });
 
@@ -162,7 +163,8 @@ router.post('/refresh', verifyJWT, async (req, res) => {
 
     res.json({
       jwt: token,
-      remainingScans: user.remainingScans
+      remainingScans: user.remainingScans,
+      supportKey: user.supportKey
     });
 
   } catch (error) {

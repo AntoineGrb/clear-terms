@@ -49,8 +49,8 @@ function verifyJWT(req, res, next) {
 
     if (decoded.deviceId !== requestDeviceId) {
       console.log('❌ [AUTH] Erreur: DeviceId ne correspond pas');
-      console.log('   Token deviceId:', decoded.deviceId.substring(0, 8) + '...');
-      console.log('   Request deviceId:', requestDeviceId.substring(0, 8) + '...');
+      console.log('   Token deviceId:', decoded.deviceId);
+      console.log('   Request deviceId:', requestDeviceId);
       return res.status(403).json({
         error: 'DEVICE_MISMATCH',
         message: 'Token deviceId does not match request deviceId'
@@ -64,7 +64,7 @@ function verifyJWT(req, res, next) {
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       console.log('❌ [AUTH] Erreur: Token expiré');
-      console.log('   DeviceId de la requête:', requestDeviceId?.substring(0, 8) + '...');
+      console.log('   DeviceId de la requête:', requestDeviceId);
       return res.status(403).json({
         error: 'TOKEN_EXPIRED',
         message: 'Token has expired. Please re-register.'
@@ -73,8 +73,7 @@ function verifyJWT(req, res, next) {
 
     if (error.name === 'JsonWebTokenError') {
       console.log('❌ [AUTH] Erreur: Token invalide');
-      console.log('   Message:', error.message);
-      console.log('   DeviceId de la requête:', requestDeviceId?.substring(0, 8) + '...');
+      console.log('   DeviceId de la requête:', requestDeviceId);
       return res.status(403).json({
         error: 'INVALID_TOKEN',
         message: 'Token is invalid'
@@ -90,38 +89,6 @@ function verifyJWT(req, res, next) {
   }
 }
 
-/**
- * Middleware optionnel pour vérifier le JWT sans bloquer
- * Utile pour des routes qui peuvent fonctionner avec ou sans auth
- */
-function optionalJWT(req, res, next) {
-  const authHeader = req.headers['authorization'];
-
-  if (!authHeader) {
-    req.user = null;
-    return next();
-  }
-
-  const parts = authHeader.split(' ');
-
-  if (parts.length !== 2 || parts[0] !== 'Bearer') {
-    req.user = null;
-    return next();
-  }
-
-  const token = parts[1];
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    req.user = null;
-    next();
-  }
-}
-
 module.exports = {
   verifyJWT,
-  optionalJWT
 };

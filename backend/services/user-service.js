@@ -55,6 +55,17 @@ class UserService {
   }
 
   /**
+   * Générer une support_key courte à partir du deviceId
+   * Format: CT-XXXX-YYYY (ex: CT-8F2A-119B)
+   */
+  _generateSupportKey(deviceId) {
+    const parts = deviceId.split('-');
+    const part1 = parts[0].substring(0, 4).toUpperCase();
+    const part2 = parts[1].substring(0, 4).toUpperCase();
+    return `CT-${part1}-${part2}`;
+  }
+
+  /**
    * Créer un nouvel utilisateur
    */
   async createUser(deviceId) {
@@ -71,9 +82,13 @@ class UserService {
         return data.users[deviceId];
       }
 
+      // Générer la support_key
+      const supportKey = this._generateSupportKey(deviceId);
+
       // Créer le nouvel utilisateur
       const newUser = {
         deviceId,
+        supportKey,
         remainingScans: INITIAL_CREDITS,
         totalScansUsed: 0,
         createdAt: new Date().toISOString(),

@@ -18,9 +18,9 @@ async function processJob(jobId, jobs, cache, primaryModel, fallbackModels, apiK
     const urlHash = calculateUrlHash(url);
     const contentHash = calculateContentHash(content);
 
+    console.log(`👤 [JOB ${jobId}] Device ID: ${deviceId}`);
     console.log(`🔗 [JOB ${jobId}] URL: ${url}`);
-    console.log(`📊 [JOB ${jobId}] Hash URL: ${urlHash.substring(0, 16)}...`);
-    console.log(`📄 [JOB ${jobId}] Hash Contenu: ${contentHash.substring(0, 16)}...`);
+    // console.log(`📊 [JOB ${jobId}] Hash URL: ${urlHash.substring(0, 16)}...`);;
     console.log(`🌍 [JOB ${jobId}] Langue demandée: ${userLanguage}`);
 
     // Vérifier le cache pour cette URL et cette langue
@@ -56,7 +56,7 @@ async function processJob(jobId, jobs, cache, primaryModel, fallbackModels, apiK
           if (userService && deviceId) {
             try {
               const newCredits = await userService.decrementCredits(deviceId);
-              console.log(`💳 [CACHE HIT] Crédits décrémtés pour ${deviceId}: ${newCredits} restants`);
+              console.log(`💳 [CACHE HIT] Crédits décrémentés pour ${deviceId}: ${newCredits} restants`);
             } catch (error) {
               console.error(`❌ [CACHE HIT] Erreur décrémentation:`, error.message);
             }
@@ -102,7 +102,7 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
     if (userService && deviceId) {
       try {
         const newCredits = await userService.decrementCredits(deviceId);
-        console.log(`💳 [AI CALL] Crédits décrémtés pour ${deviceId}: ${newCredits} restants`);
+        console.log(`💳 [AI CALL] Crédits décrémentés pour ${deviceId}: ${newCredits} restants`);
         // Stocker dans le job pour pouvoir rembourser en cas d'erreur
         job.creditDebited = true;
       } catch (error) {
@@ -187,7 +187,7 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
         lastAccessedAt: now
       });
       console.log(`💾 Nouvelle entrée cache créée pour: ${url}`);
-      console.log('=== SCAN END===')
+      console.log('=== SCAN END=== \n')
     }
 
     job.result = report;

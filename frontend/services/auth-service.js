@@ -10,7 +10,7 @@ async function getDeviceId() {
     // Utiliser le fingerprinting pour un ID stable
     if (typeof fingerprintService !== 'undefined' && fingerprintService.getStableDeviceId) {
       const deviceId = await fingerprintService.getStableDeviceId();
-      console.log('[AUTH] DeviceId récupéré:', deviceId.substring(0, 8) + '...');
+      console.log('[AUTH] DeviceId récupéré:', deviceId);
       return deviceId;
     }
 
@@ -54,12 +54,13 @@ async function registerUser() {
       throw new Error(errorData.message || 'Registration failed');
     }
 
-    const { jwt, remainingScans, createdAt } = await response.json();
+    const { jwt, remainingScans, supportKey, createdAt } = await response.json();
 
-    // Stocker JWT et crédits localement
+    // Stocker JWT, crédits et support key localement
     await chrome.storage.sync.set({
       jwt,
       remainingScans,
+      supportKey,
       registeredAt: createdAt
     });
 

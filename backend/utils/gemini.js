@@ -25,15 +25,6 @@ async function loadPromptTemplate() {
 }
 
 /**
- * Charge le schéma JSON
- */
-async function loadSchema() {
-  const schemaPath = path.join(__dirname, '..', 'schema.json');
-  const content = await fs.readFile(schemaPath, 'utf-8');
-  return JSON.parse(content);
-}
-
-/**
  * Appelle l'API Gemini avec le système de fallback
  */
 async function callGemini(prompt, fallbackModels, apiKey) {
@@ -93,6 +84,5 @@ async function callGemini(prompt, fallbackModels, apiKey) {
 
 module.exports = {
   loadPromptTemplate,
-  loadSchema,
   callGemini
 };

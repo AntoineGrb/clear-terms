@@ -106,10 +106,11 @@ async function performAnalysis(url, content, userLanguage, retryCount = 0) {
         console.warn('[API] → Le token est invalide/expiré, mais deviceId fait foi');
         console.warn('[API] → Renouvellement automatique du token via /register...');
 
-        // Cas DEVICE_MISMATCH : Supprimer le token local corrompu
+        // Cas DEVICE_MISMATCH : Supprimer le token ET le deviceId corrompus
         if (error.error === 'DEVICE_MISMATCH') {
           console.warn('[API] ⚠️  Token contient un autre deviceId, suppression...');
-          await chrome.storage.sync.remove(['jwt']);
+          console.warn('[API] ⚠️  Suppression du deviceId corrompu pour forcer la regénération via fingerprint...');
+          await chrome.storage.sync.remove(['jwt', 'deviceId']);
         }
 
         // Renouveler le token (appelle /register avec deviceId)

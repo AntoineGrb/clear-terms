@@ -151,21 +151,13 @@ class DatabaseService {
       }
 
       const result = await response.json();
-      console.log('✅ [DB] Données lues depuis JsonBin');
 
       // JsonBin retourne { record: {...} }
       const data = result.record || { users: {} };
 
       // Assurer que la structure contient toujours un objet users
       if (!data.users) {
-        console.log('⚠️  [DB] JsonBin ne contient pas de propriété "users", ajout...');
         data.users = {};
-      }
-
-      const userCount = Object.keys(data.users || {}).length;
-      console.log(`📊 [DB] Nombre d'utilisateurs dans JsonBin: ${userCount}`);
-      if (userCount > 0) {
-        console.log(`👥 [DB] DeviceIds présents: ${Object.keys(data.users).join(', ')}`);
       }
 
       return data;
@@ -191,8 +183,6 @@ class DatabaseService {
         console.error(`❌ [DB] JsonBin error response (${response.status}):`, errorText);
         throw new Error(`JsonBin write error: ${response.status}`);
       }
-
-      console.log('✅ [DB] Données écrites sur JsonBin');
     } catch (error) {
       console.error('❌ [DB] Erreur écriture JsonBin:', error);
       throw error;

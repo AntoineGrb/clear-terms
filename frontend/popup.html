@@ -34,7 +34,12 @@
     </div>
 
     <!-- Titre "Dernière analyse" -->
-    <h3 id="lastAnalysisTitle" class="hidden mb-2 text-sm font-medium text-gray-700" data-i18n="lastAnalysis">Dernière analyse consultée</h3>
+    <div class="flex items-center justify-between mb-2">
+      <h3 id="lastAnalysisTitle" class="hidden text-sm font-medium text-gray-700" data-i18n="lastAnalysis">Dernière analyse consultée</h3>
+      <a id="historyLink" href="#" class="text-sm font-medium transition-colors text-primary-600 hover:text-primary-700" data-i18n="viewHistory">
+          Tout voir →
+        </a>
+    </div>
 
     <!-- Section Rapport (accordéon) -->
     <div id="reportSection" class="hidden overflow-hidden transition-shadow bg-white rounded-lg shadow-md cursor-pointer hover:shadow-lg">
@@ -75,9 +80,9 @@
 
     <!-- Lien vers l'historique -->
     <div id="historyLinkContainer" class="hidden mt-3 text-center">
-      <a id="historyLink" href="#" class="text-sm font-medium transition-colors text-primary-600 hover:text-primary-700" data-i18n="viewHistory">
+      <!-- <a id="historyLink" href="#" class="text-sm font-medium transition-colors text-primary-600 hover:text-primary-700" data-i18n="viewHistory">
         Voir l'historique →
-      </a>
+      </a> -->
     </div>
 
     <!-- Footer -->

@@ -186,6 +186,9 @@ async function handleToastAnalysisRequest(url, content) {
 
     const userLanguage = await loadLanguagePreference();
 
+    // S'assurer que le token existe avant de vérifier les crédits
+    await authService.getJWT();
+
     // Vérifier les crédits
     const hasCredits = await authService.hasCredits();
 
@@ -485,6 +488,7 @@ function hideAllPages() {
   document.getElementById('settingsPage').classList.add('hidden');
   document.getElementById('aboutPage').classList.add('hidden');
   document.getElementById('termsPage').classList.add('hidden');
+  document.getElementById('contactPage').classList.add('hidden');
 }
 
 /**
@@ -508,6 +512,13 @@ function showAboutPage() {
 function showTermsPage() {
   hideAllPages();
   document.getElementById('termsPage').classList.remove('hidden');
+}
+
+function showContactPage() {
+  hideAllPages();
+  document.getElementById('contactPage').classList.remove('hidden');
+  // Charger la support key
+  loadSupportKey();
 }
 
 // Event listeners pour la navigation
@@ -534,6 +545,15 @@ document.getElementById('termsButton').addEventListener('click', () => {
 });
 
 document.getElementById('backFromTerms').addEventListener('click', () => {
+  showMainPage();
+});
+
+// Navigation vers Contact
+document.getElementById('contactButton').addEventListener('click', () => {
+  showContactPage();
+});
+
+document.getElementById('backFromContact').addEventListener('click', () => {
   showMainPage();
 });
 
@@ -625,4 +645,89 @@ document.getElementById('copyUrlButton').addEventListener('click', async (e) => 
   } catch (error) {
     // Erreur silencieuse
   }
+});
+
+// ========================================
+// Contact page - Support Key
+// ========================================
+
+/**
+ * Charger et afficher la support key
+ */
+async function loadSupportKey() {
+  try {
+    const supportKeyInput = document.getElementById('supportKeyInput');
+
+    // Récupérer depuis le storage (sauvegardé lors du register)
+    const result = await chrome.storage.sync.get(['supportKey']);
+
+    if (result.supportKey) {
+      supportKeyInput.value = result.supportKey;
+    } else {
+      // Fallback: récupérer depuis l'API
+      const jwt = await authService.getJWT();
+      const deviceId = await authService.getDeviceId();
+
+      if (!jwt || !deviceId) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`${CONFIG.API_URL}/api/auth/credits?deviceId=${deviceId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${jwt}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch support key');
+      }
+
+      const data = await response.json();
+
+      if (data.supportKey) {
+        supportKeyInput.value = data.supportKey;
+        // Sauvegarder pour la prochaine fois
+        await chrome.storage.sync.set({ supportKey: data.supportKey });
+      } else {
+        throw new Error('Support key not available');
+      }
+    }
+  } catch (error) {
+    console.error('[CONTACT] Error loading support key:', error);
+    document.getElementById('supportKeyInput').value = 'Erreur de chargement';
+  }
+}
+
+/**
+ * Copier la support key dans le presse-papiers
+ */
+document.getElementById('copySupportKeyButton').addEventListener('click', async () => {
+  const supportKey = document.getElementById('supportKeyInput').value;
+
+  if (supportKey && supportKey !== 'Chargement...' && supportKey !== 'Erreur de chargement') {
+    try {
+      await navigator.clipboard.writeText(supportKey);
+
+      // Afficher le message de succès
+      const successMessage = document.getElementById('copySuccessMessage');
+      successMessage.classList.remove('hidden');
+
+      setTimeout(() => {
+        successMessage.classList.add('hidden');
+      }, 3000);
+    } catch (error) {
+      console.error('[CONTACT] Error copying to clipboard:', error);
+      // Fallback: sélectionner le texte
+      document.getElementById('supportKeyInput').select();
+    }
+  }
+});
+
+/**
+ * Sélectionner tout le texte au clic sur l'input
+ */
+document.getElementById('supportKeyInput').addEventListener('click', (e) => {
+  e.target.select();
 });

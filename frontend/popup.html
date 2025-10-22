@@ -85,6 +85,7 @@
       <div class="flex justify-center gap-6 mb-3 text-xs">
         <button id="aboutButton" class="font-medium transition-colors text-primary-600 hover:text-primary-700" data-i18n="about">À propos</button>
         <button id="termsButton" class="font-medium transition-colors text-primary-600 hover:text-primary-700" data-i18n="terms">Conditions de Service</button>
+        <button id="contactButton" class="font-medium transition-colors text-primary-600 hover:text-primary-700" data-i18n="contact">Contact</button>
       </div>
     </div>
   </div>
@@ -387,6 +388,66 @@
         </section>
 
         <p class="mt-4 italic text-gray-500" data-i18n="termsContent.lastUpdated">Dernière mise à jour : 20 octobre 2025</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page Contact (cachée par défaut) -->
+  <div id="contactPage" class="flex-1 hidden px-4 py-4 overflow-y-scroll scrollbar-thin">
+    <div class="p-4 bg-white rounded-lg shadow-sm">
+      <div class="flex items-center mb-4">
+        <button id="backFromContact" class="mr-3 text-gray-600 transition-colors hover:text-gray-900">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h2 class="text-lg font-semibold text-gray-900" data-i18n="contactHeader">Support & Contact</h2>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Contact Information -->
+        <section>
+          <p class="mb-3 text-xs leading-relaxed text-gray-700" data-i18n="contactDescription">
+            En cas de question, de suggestion d'amélioration ou de problème, contactez-nous à :
+          </p>
+          <p class="text-sm text-gray-900">
+            <a href="mailto:antoine.grubert@outlook.fr" class="font-semibold transition-colors text-primary-600 hover:text-primary-700">antoine.grubert@outlook.fr</a>
+          </p>
+        </section>
+
+        <!-- Support Key Section -->
+        <section class="pt-3 border-t border-gray-200">
+          <h3 class="mb-2 text-sm font-semibold text-gray-900" data-i18n="supportKeyTitle">Identifiant de support</h3>
+          <p class="mb-3 text-xs text-gray-600" data-i18n="supportKeyDescription">
+            En cas de problème ou de réclamation, merci d'indiquer votre ID utilisateur affiché ci-dessous dans votre message :
+          </p>
+
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              id="supportKeyInput"
+              readonly
+              value="Chargement..."
+              class="flex-1 px-3 py-2 text-sm font-mono font-semibold border border-gray-300 rounded-md text-gray-800 bg-gray-50 cursor-text select-all focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+            <button
+              id="copySupportKeyButton"
+              class="px-3 py-2 text-xs font-medium text-white transition-colors rounded-md bg-primary-500 hover:bg-primary-600 whitespace-nowrap"
+            >
+              <span data-i18n="copy">Copier</span>
+            </button>
+          </div>
+
+          <div id="copySuccessMessage" class="hidden mt-2 text-xs text-green-600">
+            <span data-i18n="copiedSuccess">✓ ID copié avec succès !</span>
+          </div>
+
+          <div class="p-3 mt-3 border rounded-md bg-blue-50 border-blue-200">
+            <p class="text-xs text-blue-800" data-i18n="supportKeyInfo">
+              Cet identifiant nous permet de retrouver votre compte et de résoudre plus rapidement vos problèmes de crédit, de token ou toute autre difficulté technique.
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   </div>

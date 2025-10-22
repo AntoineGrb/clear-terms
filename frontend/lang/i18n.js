@@ -60,6 +60,18 @@ const translations = {
     contact: "Contact",
     disclaimer: "⚠️ Clear Terms fournit un résumé non-juridique. Consultez toujours le texte original. Les analyses IA peuvent contenir des erreurs.",
 
+    // Contact page
+    contactTitle: "Support & Contact",
+    contactHeader: "Support & Contact",
+    contactDescription: "En cas de question, de suggestion d'amélioration ou de problème, contactez-nous à :",
+    supportKeyTitle: "Identifiant de support",
+    supportKeyDescription: "En cas de problème ou de réclamation, merci d'indiquer votre ID utilisateur affiché ci-dessous dans votre message :",
+    userIdLabel: "Identifiant utilisateur",
+    copy: "Copier",
+    copiedSuccess: "ID copié avec succès !",
+    supportKeyInfo: "Cet identifiant nous permet de retrouver votre compte et de résoudre plus rapidement vos problèmes de crédit, de token ou toute autre difficulté technique.",
+    back: "Retour",
+
     // Token refresh
     refreshToken: "Support",
     refreshTokenButton: "Rafraîchir l'authentification",
@@ -317,6 +329,18 @@ const translations = {
     terms: "Terms of Service",
     contact: "Contact",
     disclaimer: "⚠️ Clear Terms provides a non-legal summary. Always consult the original text. AI analyses may contain errors.",
+
+    // Contact page
+    contactTitle: "Support & Contact",
+    contactHeader: "Support & Contact",
+    contactDescription: "If you have any questions, suggestions, or issues, please contact us at:",
+    supportKeyTitle: "Support Identifier",
+    supportKeyDescription: "In case of a problem or complaint, please include your user ID displayed below in your message:",
+    userIdLabel: "User ID",
+    copy: "Copy",
+    copiedSuccess: "ID copied successfully!",
+    supportKeyInfo: "This identifier allows us to locate your account and resolve your credit, token, or any other technical issues more quickly.",
+    back: "Back",
 
     // Token refresh
     refreshToken: "Support",

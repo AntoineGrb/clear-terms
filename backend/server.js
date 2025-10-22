@@ -119,9 +119,17 @@ app.post('/scan', scanLimiter, verifyJWT, async (req, res) => {
       return res.status(400).json({ error: 'Le champ "deviceId" est requis' });
     }
 
+    console.log(`🔑 [SCAN] DeviceId reçu: ${deviceId}`);
+
     const user = await userService.getUser(deviceId);
 
+    console.log(`👤 [SCAN] Utilisateur trouvé: ${!!user}`);
+    if (user) {
+      console.log(`📊 [SCAN] Crédits restants: ${user.remainingScans}`);
+    }
+
     if (!user) {
+      console.log(`❌ [SCAN] USER_NOT_FOUND pour deviceId: ${deviceId}`);
       return res.status(404).json({ error: 'USER_NOT_FOUND', message: 'Utilisateur non trouvé' });
     }
 

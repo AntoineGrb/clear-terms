@@ -167,6 +167,12 @@ class DatabaseService {
         data.users = {};
       }
 
+      const userCount = Object.keys(data.users || {}).length;
+      console.log(`📊 [DB] Nombre d'utilisateurs dans JsonSilo: ${userCount}`);
+      if (userCount > 0) {
+        console.log(`👥 [DB] DeviceIds présents: ${Object.keys(data.users).join(', ')}`);
+      }
+
       return data;
     } catch (error) {
       console.error('❌ [DB] Erreur lecture JsonSilo:', error);

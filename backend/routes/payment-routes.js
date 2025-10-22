@@ -49,16 +49,20 @@ router.post('/create-checkout-session', verifyJWT, async (req, res) => {
     const successUrl = `${baseUrl}/pages/payment-success.html?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/pages/payment-error.html`;
 
+    // Utiliser le stripeCustomerId existant ou en créer un nouveau
+    let stripeCustomerId = user.stripeCustomerId;
+
     // Créer la session Checkout
     const session = await stripeService.createCheckoutSession({
       deviceId,
       priceId,
       amount,
       successUrl,
-      cancelUrl
+      cancelUrl,
+      stripeCustomerId // Passer le customerId existant s'il y en a un
     });
 
-    // Mettre à jour le stripeCustomerId si ce n'est pas déjà fait
+    // Sauvegarder le stripeCustomerId si c'est la première fois
     if (!user.stripeCustomerId && session.customer) {
       await userService.updateStripeCustomerId(deviceId, session.customer);
     }
@@ -72,9 +76,14 @@ router.post('/create-checkout-session', verifyJWT, async (req, res) => {
 
   } catch (error) {
     console.error('[PAYMENT] Create checkout session error:', error);
+    console.error('[PAYMENT] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     res.status(500).json({
       error: 'CREATE_SESSION_ERROR',
-      message: 'Failed to create checkout session'
+      message: error.message || 'Failed to create checkout session'
     });
   }
 });

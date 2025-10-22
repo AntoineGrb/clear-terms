@@ -26,6 +26,8 @@ class StripeService {
 
   /**
    * Créer ou récupérer un client Stripe
+   * Note: On crée un nouveau client à chaque fois car on ne peut pas chercher par metadata
+   * Le deviceId sera stocké côté backend dans users.json avec le stripeCustomerId
    */
   async getOrCreateCustomer(deviceId, email = null) {
     if (!this.isConfigured()) {
@@ -33,21 +35,10 @@ class StripeService {
     }
 
     try {
-      // Chercher si un client existe déjà avec ce deviceId
-      const existingCustomers = await this.stripe.customers.list({
-        limit: 1,
-        metadata: { deviceId }
-      });
-
-      if (existingCustomers.data.length > 0) {
-        console.log(`♻️  [STRIPE] Client existant trouvé: ${existingCustomers.data[0].id}`);
-        return existingCustomers.data[0];
-      }
-
-      // Créer un nouveau client
+      // Créer un nouveau client avec le deviceId en description
       const customer = await this.stripe.customers.create({
         email,
-        metadata: { deviceId }
+        description: `Clear Terms User - DeviceID: ${deviceId.substring(0, 8)}...`
       });
 
       console.log(`✨ [STRIPE] Nouveau client créé: ${customer.id}`);
@@ -62,18 +53,25 @@ class StripeService {
   /**
    * Créer une session Checkout
    */
-  async createCheckoutSession({ deviceId, priceId, amount, successUrl, cancelUrl }) {
+  async createCheckoutSession({ deviceId, priceId, amount, successUrl, cancelUrl, stripeCustomerId = null }) {
     if (!this.isConfigured()) {
       throw new Error('Stripe not configured');
     }
 
     try {
-      // Récupérer ou créer le client Stripe
-      const customer = await this.getOrCreateCustomer(deviceId);
+      let customerId = stripeCustomerId;
+
+      // Créer un nouveau client seulement si on n'en a pas déjà un
+      if (!customerId) {
+        const customer = await this.getOrCreateCustomer(deviceId);
+        customerId = customer.id;
+      } else {
+        console.log(`♻️  [STRIPE] Utilisation du client existant: ${customerId}`);
+      }
 
       // Créer la session Checkout
       const session = await this.stripe.checkout.sessions.create({
-        customer: customer.id,
+        customer: customerId,
         mode: 'payment',
         payment_method_types: ['card'],
         line_items: [

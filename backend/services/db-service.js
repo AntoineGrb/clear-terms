@@ -7,7 +7,7 @@ const LOCK_FILE = path.join(__dirname, '../db/users.lock');
 /**
  * Service d'abstraction pour la base de données utilisateurs
  * Gère automatiquement le switch entre fichier local et JsonBin.io
- * Basé sur NODE_ENV : production = JsonBin, sinon = local
+ * Basé sur NODE_ENV : production/staging = JsonBin, sinon = local
  */
 class DatabaseService {
   constructor() {
@@ -20,7 +20,7 @@ class DatabaseService {
 
   /**
    * Détermine si on doit utiliser JsonBin ou le fichier local
-   * Basé sur NODE_ENV : production = JsonBin, sinon = local
+   * Basé sur NODE_ENV : production/staging = JsonBin, sinon = local
    */
   _shouldUseJsonBin() {
     if (this.useJsonBin !== null) {
@@ -28,7 +28,7 @@ class DatabaseService {
     }
 
     // Utiliser JsonBin uniquement en production avec les credentials
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
     this.useJsonBin = isProduction && !!this.jsonBinKey && !!this.jsonBinId;
 
     console.log(`🗄️  [DB] Mode: ${this.useJsonBin ? 'JsonBin (distant)' : 'Local (users.json)'} [NODE_ENV: ${process.env.NODE_ENV || 'development'}]`);

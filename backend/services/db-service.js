@@ -155,6 +155,18 @@ class DatabaseService {
 
       const data = await response.json();
       console.log('✅ [DB] Données lues depuis JsonSilo');
+
+      // Assurer que la structure contient toujours un objet users
+      if (!data || typeof data !== 'object') {
+        console.log('⚠️  [DB] JsonSilo retourne une structure invalide, initialisation...');
+        return { users: {} };
+      }
+
+      if (!data.users) {
+        console.log('⚠️  [DB] JsonSilo ne contient pas de propriété "users", ajout...');
+        data.users = {};
+      }
+
       return data;
     } catch (error) {
       console.error('❌ [DB] Erreur lecture JsonSilo:', error);

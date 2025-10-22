@@ -10,8 +10,8 @@ const CONFIG = {
   PROD_URL: 'https://clear-terms.onrender.com',
 
   // Mode de fonctionnement (une seule des options à true)
-  FORCE_LOCAL: true, 
-  FORCE_STAGING: false,
+  FORCE_LOCAL: false, 
+  FORCE_STAGING: true,
   FORCE_PROD: false,  
   // Si les 3 sont false = auto-détection (dev/prod)
 

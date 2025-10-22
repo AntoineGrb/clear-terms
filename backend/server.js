@@ -8,6 +8,7 @@ require('dotenv').config();
 
 const { processJob } = require('./services/job-processor');
 const authRoutes = require('./routes/auth-routes');
+const paymentRoutes = require('./routes/payment-routes');
 const userService = require('./services/user-service');
 const { verifyJWT } = require('./middleware/auth-middleware');
 
@@ -101,6 +102,9 @@ function enforceCacheLimit() {
 
 // Routes d'authentification
 app.use('/api/auth', authRoutes);
+
+// Routes de paiement
+app.use('/api/payments', paymentRoutes);
 
 /**
  * POST /scan

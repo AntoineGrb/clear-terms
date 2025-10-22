@@ -176,6 +176,134 @@ class UserService {
       await dbService.releaseLock();
     }
   }
+
+  /**
+   * Mettre à jour le Stripe Customer ID d'un utilisateur
+   */
+  async updateStripeCustomerId(deviceId, stripeCustomerId) {
+    if (!deviceId || !stripeCustomerId) {
+      throw new Error('deviceId and stripeCustomerId are required');
+    }
+
+    try {
+      await dbService.acquireLock();
+      const data = await this._readUsers();
+
+      const user = data.users[deviceId];
+      if (!user) {
+        throw new Error('USER_NOT_FOUND');
+      }
+
+      user.stripeCustomerId = stripeCustomerId;
+      data.users[deviceId] = user;
+      await this._writeUsers(data);
+
+      return user;
+    } finally {
+      await dbService.releaseLock();
+    }
+  }
+
+  /**
+   * Enregistrer un achat et ajouter des crédits
+   */
+  async recordPurchase(deviceId, purchaseData) {
+    if (!deviceId) {
+      throw new Error('deviceId is required');
+    }
+
+    const { stripePaymentIntentId, amount, currency = 'eur', status = 'completed' } = purchaseData;
+
+    if (!stripePaymentIntentId || !amount) {
+      throw new Error('stripePaymentIntentId and amount are required');
+    }
+
+    try {
+      await dbService.acquireLock();
+      const data = await this._readUsers();
+
+      const user = data.users[deviceId];
+      if (!user) {
+        throw new Error('USER_NOT_FOUND');
+      }
+
+      // Calculer les scans à ajouter en fonction du montant
+      const scansToAdd = this._calculateScansFromAmount(amount);
+
+      // Créer l'entrée d'achat
+      const purchase = {
+        purchaseId: `purchase_${Date.now()}`,
+        stripePaymentIntentId,
+        amount,
+        currency,
+        purchasedAt: new Date().toISOString(),
+        status
+      };
+
+      // Initialiser purchaseHistory si inexistant
+      if (!user.purchaseHistory) {
+        user.purchaseHistory = [];
+      }
+
+      // Ajouter l'achat à l'historique
+      user.purchaseHistory.push(purchase);
+
+      // Ajouter les crédits si le paiement est réussi
+      if (status === 'completed') {
+        user.remainingScans += scansToAdd;
+        console.log(`💳 [USER] ${scansToAdd} scans ajoutés pour ${deviceId} (${amount}€)`);
+      }
+
+      user.lastUsedAt = new Date().toISOString();
+
+      data.users[deviceId] = user;
+      await this._writeUsers(data);
+
+      return {
+        user,
+        scansAdded: status === 'completed' ? scansToAdd : 0
+      };
+    } finally {
+      await dbService.releaseLock();
+    }
+  }
+
+  /**
+   * Calculer le nombre de scans en fonction du montant payé
+   */
+  _calculateScansFromAmount(amount) {
+    // Mapping des montants vers les nombres de scans
+    const pricingMap = {
+      2: 20,    // Pack Standard: 2€ = 20 scans
+      5: 100,   // Pack Plus: 5€ = 100 scans
+      20: 1000  // Pack Pro: 20€ = 1000 scans
+    };
+
+    return pricingMap[amount] || 0;
+  }
+
+  /**
+   * Récupérer l'historique des achats d'un utilisateur
+   */
+  async getPurchaseHistory(deviceId) {
+    if (!deviceId) {
+      throw new Error('deviceId is required');
+    }
+
+    try {
+      await dbService.acquireLock();
+      const data = await this._readUsers();
+
+      const user = data.users[deviceId];
+      if (!user) {
+        throw new Error('USER_NOT_FOUND');
+      }
+
+      return user.purchaseHistory || [];
+    } finally {
+      await dbService.releaseLock();
+    }
+  }
 }
 
 module.exports = new UserService();

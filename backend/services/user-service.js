@@ -1,40 +1,24 @@
-const fs = require('fs').promises;
-const path = require('path');
+const dbService = require('./db-service');
 
-const USERS_FILE = path.join(__dirname, '../db/users.json');
-const LOCK_FILE = path.join(__dirname, '../db/users.lock');
 const INITIAL_CREDITS = 20;
 
 /**
  * Service de gestion des utilisateurs et de leurs crédits
+ * Utilise db-service pour gérer le stockage (local ou JsonSilo)
  */
 class UserService {
-  constructor() {
-    this.lockActive = false;
-  }
-
   /**
-   * Lire le fichier users.json
+   * Lire les données utilisateurs (via db-service)
    */
   async _readUsers() {
-    try {
-      const data = await fs.readFile(USERS_FILE, 'utf8');
-      return JSON.parse(data);
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        // Fichier n'existe pas, créer un objet vide
-        return { users: {} };
-      }
-      throw error;
-    }
+    return await dbService.readUsers();
   }
 
   /**
-   * Écrire dans le fichier users.json
+   * Écrire les données utilisateurs (via db-service)
    */
   async _writeUsers(data) {
-    const jsonData = JSON.stringify(data, null, 2);
-    await fs.writeFile(USERS_FILE, jsonData, 'utf8');
+    await dbService.writeUsers(data);
   }
 
   /**
@@ -46,11 +30,11 @@ class UserService {
     }
 
     try {
-      await this._acquireLock();
+      await dbService.acquireLock();
       const data = await this._readUsers();
       return data.users[deviceId] || null;
     } finally {
-      await this._releaseLock();
+      await dbService.releaseLock();
     }
   }
 
@@ -74,7 +58,7 @@ class UserService {
     }
 
     try {
-      await this._acquireLock();
+      await dbService.acquireLock();
       const data = await this._readUsers();
 
       // Vérifier si l'utilisateur existe déjà
@@ -101,7 +85,7 @@ class UserService {
 
       return newUser;
     } finally {
-      await this._releaseLock();
+      await dbService.releaseLock();
     }
   }
 
@@ -114,7 +98,7 @@ class UserService {
     }
 
     try {
-      await this._acquireLock();
+      await dbService.acquireLock();
       const data = await this._readUsers();
 
       const user = data.users[deviceId];
@@ -136,7 +120,7 @@ class UserService {
 
       return user.remainingScans;
     } finally {
-      await this._releaseLock();
+      await dbService.releaseLock();
     }
   }
 
@@ -153,7 +137,7 @@ class UserService {
     }
 
     try {
-      await this._acquireLock();
+      await dbService.acquireLock();
       const data = await this._readUsers();
 
       const user = data.users[deviceId];
@@ -170,7 +154,7 @@ class UserService {
 
       return user.remainingScans;
     } finally {
-      await this._releaseLock();
+      await dbService.releaseLock();
     }
   }
 
@@ -179,7 +163,7 @@ class UserService {
    */
   async getStats() {
     try {
-      await this._acquireLock();
+      await dbService.acquireLock();
       const data = await this._readUsers();
       const users = Object.values(data.users);
 
@@ -189,59 +173,7 @@ class UserService {
         totalRemainingScans: users.reduce((sum, u) => sum + u.remainingScans, 0)
       };
     } finally {
-      await this._releaseLock();
-    }
-  }
-
-    /**
-   * Acquérir un lock sur le fichier users.json
-   */
-  async _acquireLock(maxRetries = 10, retryDelay = 100) {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        // Tenter de créer le fichier lock
-        await fs.writeFile(LOCK_FILE, Date.now().toString(), { flag: 'wx' });
-        this.lockActive = true;
-        return true;
-      } catch (error) {
-        if (error.code === 'EEXIST') {
-          // Lock déjà présent, vérifier s'il est périmé (> 5 secondes)
-          try {
-            const stats = await fs.stat(LOCK_FILE);
-            const lockAge = Date.now() - stats.mtimeMs;
-
-            if (lockAge > 5000) {
-              // Lock périmé, le supprimer
-              await fs.unlink(LOCK_FILE).catch(() => {});
-              continue;
-            }
-          } catch (statError) {
-            // Lock n'existe plus, réessayer
-            continue;
-          }
-
-          // Attendre avant de réessayer
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    throw new Error('Unable to acquire lock on users.json');
-  }
-
-  /**
-   * Libérer le lock
-   */
-  async _releaseLock() {
-    if (this.lockActive) {
-      try {
-        await fs.unlink(LOCK_FILE);
-        this.lockActive = false;
-      } catch (error) {
-        // Lock déjà supprimé, pas grave
-      }
+      await dbService.releaseLock();
     }
   }
 }

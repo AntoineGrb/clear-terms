@@ -121,16 +121,17 @@ app.post('/scan', scanLimiter, verifyJWT, async (req, res) => {
 
     console.log(`🔑 [SCAN] DeviceId reçu: ${deviceId}`);
 
-    const user = await userService.getUser(deviceId);
+    let user = await userService.getUser(deviceId);
 
     console.log(`👤 [SCAN] Utilisateur trouvé: ${!!user}`);
-    if (user) {
-      console.log(`📊 [SCAN] Crédits restants: ${user.remainingScans}`);
-    }
 
+    // Si l'utilisateur n'existe pas, le créer automatiquement
     if (!user) {
-      console.log(`❌ [SCAN] USER_NOT_FOUND pour deviceId: ${deviceId}`);
-      return res.status(404).json({ error: 'USER_NOT_FOUND', message: 'Utilisateur non trouvé' });
+      console.log(`✨ [SCAN] Utilisateur inexistant, création automatique pour: ${deviceId}`);
+      user = await userService.createUser(deviceId);
+      console.log(`✅ [SCAN] Nouvel utilisateur créé avec ${user.remainingScans} scans`);
+    } else {
+      console.log(`📊 [SCAN] Crédits restants: ${user.remainingScans}`);
     }
 
     if (user.remainingScans <= 0) {

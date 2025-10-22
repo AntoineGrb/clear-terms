@@ -23,7 +23,9 @@ function isValidUUID(uuid) {
  */
 router.post('/register', async (req, res) => {
   try {
+    console.log('\n==================== AUTH: REGISTER ====================');
     const { deviceId } = req.body;
+    console.log(`🔑 [AUTH] Registration attempt for deviceId: ${deviceId}`);
 
     // Validation du deviceId
     if (!deviceId) {
@@ -45,10 +47,11 @@ router.post('/register', async (req, res) => {
 
     if (!user) {
       // Créer un nouvel utilisateur avec 20 crédits gratuits
+      console.log(`✨ [AUTH] Creating new user: ${deviceId}`);
       user = await userService.createUser(deviceId);
-      console.log(`[AUTH] New user registered: ${deviceId}`);
+      console.log(`✅ [AUTH] New user registered: ${deviceId} with ${user.remainingScans} scans`);
     } else {
-      console.log(`[AUTH] Existing user deviceId logged in: ${deviceId}`);
+      console.log(`♻️  [AUTH] Existing user logged in: ${deviceId} (${user.remainingScans} scans remaining)`);
     }
 
     // Générer le JWT

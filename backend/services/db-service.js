@@ -3,44 +3,45 @@ const path = require('path');
 
 const USERS_FILE = path.join(__dirname, '../db/users.json');
 const LOCK_FILE = path.join(__dirname, '../db/users.lock');
-const JSON_SILO_URL = 'https://api.jsonsilo.com/e82ef63e-0916-49e4-ab05-aed10fefef2b';
 
 /**
  * Service d'abstraction pour la base de données utilisateurs
- * Gère automatiquement le switch entre fichier local et JsonSilo
- * Basé sur NODE_ENV : production = JsonSilo, sinon = local
+ * Gère automatiquement le switch entre fichier local et JsonBin.io
+ * Basé sur NODE_ENV : production = JsonBin, sinon = local
  */
 class DatabaseService {
   constructor() {
     this.lockActive = false;
-    this.useJsonSilo = null; // null = pas encore déterminé
-    this.jsonSiloKey = process.env.JSON_SILO_KEY;
+    this.useJsonBin = null; // null = pas encore déterminé
+    this.jsonBinKey = process.env.JSON_BIN_KEY;
+    this.jsonBinId = process.env.JSON_BIN_ID;
+    this.jsonBinUrl = this.jsonBinId ? `https://api.jsonbin.io/v3/b/${this.jsonBinId}` : null;
   }
 
   /**
-   * Détermine si on doit utiliser JsonSilo ou le fichier local
-   * Basé sur NODE_ENV : production = JsonSilo, sinon = local
+   * Détermine si on doit utiliser JsonBin ou le fichier local
+   * Basé sur NODE_ENV : production = JsonBin, sinon = local
    */
-  _shouldUseJsonSilo() {
-    if (this.useJsonSilo !== null) {
-      return this.useJsonSilo;
+  _shouldUseJsonBin() {
+    if (this.useJsonBin !== null) {
+      return this.useJsonBin;
     }
 
-    // Utiliser JsonSilo uniquement en production
+    // Utiliser JsonBin uniquement en production avec les credentials
     const isProduction = process.env.NODE_ENV === 'production';
-    this.useJsonSilo = isProduction && !!this.jsonSiloKey;
+    this.useJsonBin = isProduction && !!this.jsonBinKey && !!this.jsonBinId;
 
-    console.log(`🗄️  [DB] Mode: ${this.useJsonSilo ? 'JsonSilo (distant)' : 'Local (users.json)'} [NODE_ENV: ${process.env.NODE_ENV || 'development'}]`);
+    console.log(`🗄️  [DB] Mode: ${this.useJsonBin ? 'JsonBin (distant)' : 'Local (users.json)'} [NODE_ENV: ${process.env.NODE_ENV || 'development'}]`);
 
-    return this.useJsonSilo;
+    return this.useJsonBin;
   }
 
   /**
    * Lire les données utilisateurs
    */
   async readUsers() {
-    if (this._shouldUseJsonSilo()) {
-      return await this._readFromJsonSilo();
+    if (this._shouldUseJsonBin()) {
+      return await this._readFromJsonBin();
     } else {
       return await this._readFromLocalFile();
     }
@@ -50,8 +51,8 @@ class DatabaseService {
    * Écrire les données utilisateurs
    */
   async writeUsers(data) {
-    if (this._shouldUseJsonSilo()) {
-      await this._writeToJsonSilo(data);
+    if (this._shouldUseJsonBin()) {
+      await this._writeToJsonBin(data);
     } else {
       await this._writeToLocalFile(data);
     }
@@ -61,8 +62,8 @@ class DatabaseService {
    * Acquérir un lock (seulement pour le mode local)
    */
   async acquireLock(maxRetries = 10, retryDelay = 100) {
-    // Pas de lock nécessaire pour JsonSilo (géré par leur API)
-    if (this._shouldUseJsonSilo()) {
+    // Pas de lock nécessaire pour JsonBin (géré par leur API)
+    if (this._shouldUseJsonBin()) {
       return true;
     }
 
@@ -131,73 +132,69 @@ class DatabaseService {
   }
 
   // ========================================
-  // Méthodes privées - JsonSilo
+  // Méthodes privées - JsonBin.io
   // ========================================
 
-  async _readFromJsonSilo() {
+  async _readFromJsonBin() {
     try {
-      const response = await fetch(JSON_SILO_URL, {
+      const response = await fetch(`${this.jsonBinUrl}/latest`, {
         method: 'GET',
         headers: {
-          'X-SILO-KEY': this.jsonSiloKey,
-          'Content-Type': 'application/json'
+          'X-Master-Key': this.jsonBinKey
         }
       });
 
       if (!response.ok) {
-        // Si 404 ou autre erreur, retourner structure vide
-        if (response.status === 404) {
-          console.log('🗄️  [DB] JsonSilo vide, initialisation...');
-          return { users: {} };
-        }
-        throw new Error(`JsonSilo read error: ${response.status}`);
+        const errorText = await response.text().catch(() => 'No error details');
+        console.error(`❌ [DB] JsonBin error response (${response.status}):`, errorText);
+        throw new Error(`JsonBin read error: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('✅ [DB] Données lues depuis JsonSilo');
+      const result = await response.json();
+      console.log('✅ [DB] Données lues depuis JsonBin');
+
+      // JsonBin retourne { record: {...} }
+      const data = result.record || { users: {} };
 
       // Assurer que la structure contient toujours un objet users
-      if (!data || typeof data !== 'object') {
-        console.log('⚠️  [DB] JsonSilo retourne une structure invalide, initialisation...');
-        return { users: {} };
-      }
-
       if (!data.users) {
-        console.log('⚠️  [DB] JsonSilo ne contient pas de propriété "users", ajout...');
+        console.log('⚠️  [DB] JsonBin ne contient pas de propriété "users", ajout...');
         data.users = {};
       }
 
       const userCount = Object.keys(data.users || {}).length;
-      console.log(`📊 [DB] Nombre d'utilisateurs dans JsonSilo: ${userCount}`);
+      console.log(`📊 [DB] Nombre d'utilisateurs dans JsonBin: ${userCount}`);
       if (userCount > 0) {
         console.log(`👥 [DB] DeviceIds présents: ${Object.keys(data.users).join(', ')}`);
       }
 
       return data;
     } catch (error) {
-      console.error('❌ [DB] Erreur lecture JsonSilo:', error);
+      console.error('❌ [DB] Erreur lecture JsonBin:', error);
       throw error;
     }
   }
 
-  async _writeToJsonSilo(data) {
+  async _writeToJsonBin(data) {
     try {
-      const response = await fetch(JSON_SILO_URL, {
+      const response = await fetch(this.jsonBinUrl, {
         method: 'PUT',
         headers: {
-          'X-SILO-KEY': this.jsonSiloKey,
+          'X-Master-Key': this.jsonBinKey,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
       });
 
       if (!response.ok) {
-        throw new Error(`JsonSilo write error: ${response.status}`);
+        const errorText = await response.text().catch(() => 'No error details');
+        console.error(`❌ [DB] JsonBin error response (${response.status}):`, errorText);
+        throw new Error(`JsonBin write error: ${response.status}`);
       }
 
-      console.log('✅ [DB] Données écrites sur JsonSilo');
+      console.log('✅ [DB] Données écrites sur JsonBin');
     } catch (error) {
-      console.error('❌ [DB] Erreur écriture JsonSilo:', error);
+      console.error('❌ [DB] Erreur écriture JsonBin:', error);
       throw error;
     }
   }

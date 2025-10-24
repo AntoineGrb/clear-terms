@@ -242,6 +242,7 @@ class UserService {
       // Ajouter les crédits si le paiement est réussi
       if (status === 'completed') {
         user.remainingScans += scansToAdd;
+        user.plan = 'premium'; // Passer en premium dès le premier achat
         console.log(`💳 [USER] ${scansToAdd} scans ajoutés pour ${deviceId} (${amount}€)`);
 
         // Créer l'entrée d'achat simplifiée (focus sur les crédits)

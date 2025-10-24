@@ -143,10 +143,11 @@ router.post('/webhook', async (req, res) => {
       }
 
       case 'payment_intent.payment_failed': {
-        const paymentIntent = event.data.object;
-        console.log(`❌ [WEBHOOK] Payment failed: ${paymentIntent.id}`);
-
-        const deviceId = paymentIntent.metadata?.deviceId;
+-         const paymentIntent = event.data.object;
+-         console.log(`❌ [WEBHOOK] Payment failed: ${paymentIntent.id}`);
+- 
+-         // Optionnel: enregistrer l'échec
+-         const deviceId = paymentIntent.metadata?.deviceId;
 -         if (deviceId) {
 -           await userService.recordPurchase(deviceId, {
 -             stripePaymentIntentId: paymentIntent.id,
@@ -155,7 +156,7 @@ router.post('/webhook', async (req, res) => {
 -           });
 -         }
 -         break;
-      }
+-       }
 
       default:
         console.log(`ℹ️  [WEBHOOK] Event non traité: ${event.type}`);

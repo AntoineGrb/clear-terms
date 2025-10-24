@@ -38,3 +38,6 @@ backend/schema.json
 
 # Docs
 docs
+
+# Landing page (deployed separately)
+pages/landing/

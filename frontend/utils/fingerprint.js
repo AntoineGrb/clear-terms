@@ -86,23 +86,6 @@ async function generateBrowserFingerprint() {
 }
 
 /**
- * Génère une support_key courte et lisible à partir du device_id
- * Format: CT-XXXX-YYYY (ex: CT-8F2A-119B)
- *
- * @param {string} deviceId - L'UUID complet du device
- * @returns {string} Support key au format CT-XXXX-YYYY
- */
-function generateSupportKey(deviceId) {
-  // Prendre les 8 premiers caractères du device_id (avant le premier tiret)
-  // et les 4 caractères après le premier tiret
-  const parts = deviceId.split('-');
-  const part1 = parts[0].substring(0, 4).toUpperCase();
-  const part2 = parts[1].substring(0, 4).toUpperCase();
-
-  return `CT-${part1}-${part2}`;
-}
-
-/**
  * Récupère le deviceId basé sur le fingerprint (avec fallback sur storage)
  *
  * STRATÉGIE:
@@ -162,5 +145,4 @@ async function getStableDeviceId() {
 window.fingerprintService = {
   generateBrowserFingerprint,
   getStableDeviceId,
-  generateSupportKey
 };

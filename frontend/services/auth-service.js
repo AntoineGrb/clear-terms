@@ -43,11 +43,11 @@ async function registerUser() {
     const deviceId = await getDeviceId();
     const apiBaseUrl = getApiBaseUrl();
 
-    const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
+    const response = await fetchWithTimeout(`${apiBaseUrl}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ deviceId })
-    });
+    }, 30000);
 
     if (!response.ok) {
       const errorData = await response.json();

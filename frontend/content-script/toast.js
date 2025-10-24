@@ -9,7 +9,7 @@
  * @param {string} hash - Hash du contenu
  * @param {Object|string} data - Rapport (si found) ou contenu (si detected)
  */
-function createToast(type, url, hash, data) {
+function createToast(type, url, data) {
   // Vérifier si le toast existe déjà
   if (document.getElementById('clear-terms-toast-container')) {
     console.log('[Clear Terms] Toast déjà affiché');
@@ -53,7 +53,6 @@ function createToast(type, url, hash, data) {
     toastContainer.id = 'clear-terms-toast-container';
     toastContainer.dataset.type = type;
     toastContainer.dataset.url = url;
-    toastContainer.dataset.hash = hash;
 
     // Stocker les données dans le dataset
     if (type === 'found') {
@@ -232,7 +231,7 @@ function createToast(type, url, hash, data) {
 /**
  * Gère l'action principale du toast (Voir ou Analyser)
  */
-function handleToastPrimaryAction(type, url, hash, data) {
+function handleToastPrimaryAction(type, url, data) {
   if (type === 'found') {
     // Rapport trouvé : afficher le rapport dans le popup
     chrome.runtime.sendMessage({

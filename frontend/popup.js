@@ -362,98 +362,124 @@ async function addToReportsHistory(report) {
 
 // Charger le dernier rapport et la langue au démarrage
 chrome.storage.local.get(['lastReport', 'pendingToastAction'], async (result) => {
-  // Toujours détecter automatiquement la langue du navigateur
-  const lang = detectBrowserLanguage();
+  try {
+    // Toujours détecter automatiquement la langue du navigateur
+    const lang = detectBrowserLanguage();
 
-  // Appliquer les traductions
-  applyTranslations(lang);
+    // Appliquer les traductions
+    applyTranslations(lang);
 
-  // Charger l'état de la détection automatique et les préférences du toast
-  chrome.storage.local.get(['toastEnabled', 'toastPosition', 'toastDuration'], (toastResult) => {
-    const toastEnabled = toastResult.toastEnabled !== false; // Activé par défaut
-    document.getElementById('toastEnabled').checked = toastEnabled;
+    // Charger l'état de la détection automatique et les préférences du toast
+    chrome.storage.local.get(['toastEnabled', 'toastPosition', 'toastDuration'], (toastResult) => {
+      const toastEnabled = toastResult.toastEnabled !== false; // Activé par défaut
+      document.getElementById('toastEnabled').checked = toastEnabled;
 
-    const toastPosition = toastResult.toastPosition || 'bottom-right';
-    document.getElementById('toastPosition').value = toastPosition;
+      const toastPosition = toastResult.toastPosition || 'bottom-right';
+      document.getElementById('toastPosition').value = toastPosition;
 
-    const toastDuration = toastResult.toastDuration !== undefined ? toastResult.toastDuration : 30000;
-    document.getElementById('toastDuration').value = toastDuration.toString();
-  });
+      const toastDuration = toastResult.toastDuration !== undefined ? toastResult.toastDuration : 30000;
+      document.getElementById('toastDuration').value = toastDuration.toString();
+    });
 
-  // Charger et afficher les crédits restants - TOUJOURS depuis le backend
-  (async () => {
-    try {
-      // Afficher d'abord la valeur en cache
-      const cachedResult = await chrome.storage.sync.get(['remainingScans']);
-      const cachedRemaining = cachedResult.remainingScans !== undefined ? cachedResult.remainingScans : 20;
-      document.getElementById('remainingScans').textContent = cachedRemaining;
+    // Charger et afficher les crédits restants
+    await loadAndDisplayCredits();
 
-      // Puis rafraîchir depuis le backend
-      const deviceId = await authService.getDeviceId();
-      const jwt = await authService.getJWT();
-      const backendUrl = getBackendURL();
+    // Initialiser l'authentification (génère deviceId + JWT si première fois)
+    await authService.getJWT();
 
-      const response = await fetch(`${backendUrl}/api/auth/credits?deviceId=${deviceId}`, {
-        headers: {
-          'Authorization': `Bearer ${jwt}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        document.getElementById('remainingScans').textContent = data.remainingScans;
-
-        // Mettre à jour le cache
-        await chrome.storage.sync.set({ remainingScans: data.remainingScans });
-
-        console.log('💰 [POPUP] Crédits rafraîchis depuis le backend:', data.remainingScans);
-      }
-    } catch (error) {
-      console.error('[POPUP] Erreur rafraîchissement crédits:', error);
+    // Si une action depuis le toast est en attente, ne pas charger le lastReport
+    // (le rapport sera affiché par le code de gestion de pendingToastAction)
+    if (result.pendingToastAction) {
+      console.log('[POPUP] Action toast en attente, skip du chargement automatique du lastReport');
+      return;
     }
-  })();
 
-  // Initialiser l'authentification (génère deviceId + JWT si première fois)
-  authService.getJWT().catch((error) => {
-    console.error('[POPUP] Erreur initialisation auth:', error);
-  });
+    // Vérifier si une analyse auto est en cours
+    await checkAndContinueAutoAnalysis(result);
 
-  // Si une action depuis le toast est en attente, ne pas charger le lastReport
-  // (le rapport sera affiché par le code de gestion de pendingToastAction)
-  if (result.pendingToastAction) {
-    console.log('[POPUP] Action toast en attente, skip du chargement automatique du lastReport');
-    return;
+  } catch (error) {
+    console.error('[POPUP] Erreur lors de l\'initialisation:', error);
+
+    // Afficher un message d'erreur à l'utilisateur
+    const statusDiv = document.getElementById('status');
+    if (statusDiv) {
+      const lang = document.documentElement.lang || 'fr';
+      const message = lang === 'fr'
+        ? 'Erreur lors du chargement de l\'extension'
+        : 'Error loading extension';
+      statusDiv.innerHTML = `<p class="text-xs text-red-600">${message}</p>`;
+    }
   }
+});
 
-  // Vérifier si une analyse auto est en cours pour l'onglet actif
+/**
+ * Charge et affiche les crédits depuis le backend
+ */
+async function loadAndDisplayCredits() {
+  try {
+    // Afficher d'abord la valeur en cache
+    const cachedResult = await chrome.storage.sync.get(['remainingScans']);
+    const cachedRemaining = cachedResult.remainingScans !== undefined ? cachedResult.remainingScans : 20;
+    document.getElementById('remainingScans').textContent = cachedRemaining;
+
+    // Puis rafraîchir depuis le backend
+    const deviceId = await authService.getDeviceId();
+    const jwt = await authService.getJWT();
+    const backendUrl = getBackendURL();
+
+    const response = await fetchWithTimeout(`${backendUrl}/api/auth/credits?deviceId=${deviceId}`, {
+      headers: {
+        'Authorization': `Bearer ${jwt}`
+      }
+    }, 30000);
+
+    if (response.ok) {
+      const data = await response.json();
+      document.getElementById('remainingScans').textContent = data.remainingScans;
+
+      // Mettre à jour le cache
+      await chrome.storage.sync.set({ remainingScans: data.remainingScans });
+
+      console.log('💰 [POPUP] Crédits rafraîchis depuis le backend:', data.remainingScans);
+    }
+  } catch (error) {
+    console.error('[POPUP] Erreur rafraîchissement crédits:', error);
+    // Pas critique, on garde la valeur en cache
+  }
+}
+
+/**
+ * Vérifie si une analyse auto est en cours et la continue
+ */
+async function checkAndContinueAutoAnalysis(result) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const autoJobKey = `autoJob_${tab.id}`;
 
-    chrome.storage.local.get([autoJobKey], (jobResult) => {
-      const autoJob = jobResult[autoJobKey];
+    const jobResult = await chrome.storage.local.get([autoJobKey]);
+    const autoJob = jobResult[autoJobKey];
 
-      if (autoJob && autoJob.status === 'running') {
-        // Analyse auto en cours : afficher le loader et griser le bouton
-        const button = document.getElementById('scanButton');
-        button.disabled = true;
-        button.classList.add('opacity-50', 'cursor-not-allowed');
-        updateStatus('statusAnalyzing', 'loading');
-        continuePollingFromPopup(autoJob.jobId);
-      } else {
-        // Pas d'analyse en cours : afficher le dernier rapport global
-        if (result.lastReport) {
-          displayReport(result.lastReport);
-        }
+    if (autoJob && autoJob.status === 'running') {
+      // Analyse auto en cours : afficher le loader et griser le bouton
+      const button = document.getElementById('scanButton');
+      button.disabled = true;
+      button.classList.add('opacity-50', 'cursor-not-allowed');
+      updateStatus('statusAnalyzing', 'loading');
+      await continuePollingFromPopup(autoJob.jobId);
+    } else {
+      // Pas d'analyse en cours : afficher le dernier rapport global
+      if (result.lastReport) {
+        displayReport(result.lastReport);
       }
-    });
+    }
   } catch (error) {
+    console.error('[POPUP] Erreur check auto analysis:', error);
     // Fallback: afficher le dernier rapport si disponible
     if (result.lastReport) {
       displayReport(result.lastReport);
     }
   }
-});
+}
 
 // ========================================
 // Event handlers
@@ -703,13 +729,13 @@ async function loadSupportKey() {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`${CONFIG.API_URL}/api/auth/credits?deviceId=${deviceId}`, {
+      const response = await fetchWithTimeout(`${CONFIG.API_URL}/api/auth/credits?deviceId=${deviceId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${jwt}`,
           'Content-Type': 'application/json'
         }
-      });
+      }, 30000);
 
       if (!response.ok) {
         throw new Error('Failed to fetch support key');

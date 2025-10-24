@@ -35,6 +35,40 @@ async function extractPageContent() {
 }
 
 /**
+ * Vérifie si une erreur est une erreur d'authentification
+ */
+function isAuthError(errorCode) {
+  const authErrors = ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'NO_TOKEN', 'DEVICE_MISMATCH'];
+  return authErrors.includes(errorCode);
+}
+
+/**
+ * Gère le renouvellement du token en cas d'erreur auth
+ */
+async function handleAuthErrorAndRetry(error, url, content, userLanguage, retryCount) {
+  console.warn('[API] 🔑 Erreur auth:', error.error);
+  console.warn('[API] → Renouvellement automatique du token...');
+
+  // Cas DEVICE_MISMATCH : Supprimer token ET deviceId corrompus
+  if (error.error === 'DEVICE_MISMATCH') {
+    console.warn('[API] ⚠️  Token/deviceId corrompus, suppression...');
+    await chrome.storage.sync.remove(['jwt', 'deviceId']);
+  }
+
+  // Renouveler le token via /register
+  const refreshed = await authService.handleExpiredToken();
+
+  if (refreshed) {
+    console.log('[API] ✅ Nouveau token obtenu, retry...');
+    return await performAnalysis(url, content, userLanguage, retryCount + 1);
+  } else {
+    const refreshErr = new Error('Impossible de renouveler le token');
+    refreshErr.isAuthError = true;
+    throw refreshErr;
+  }
+}
+
+/**
  * Récupère un rapport depuis l'historique utilisateur uniquement (GRATUIT)
  * @returns {Promise<Object|null>} Le rapport ou null si non trouvé
  */
@@ -68,7 +102,7 @@ async function performAnalysis(url, content, userLanguage, retryCount = 0) {
     const deviceId = await authService.getDeviceId();
     const jwt = await authService.getJWT();
 
-    const response = await fetch(`${getBackendURL()}/scan`, {
+    const response = await fetchWithTimeout(`${getBackendURL()}/scan`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -80,7 +114,7 @@ async function performAnalysis(url, content, userLanguage, retryCount = 0) {
         user_language_preference: userLanguage,
         deviceId
       })
-    });
+    }, 60000); // 60s timeout pour les analyses longues
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -93,44 +127,16 @@ async function performAnalysis(url, content, userLanguage, retryCount = 0) {
         throw quotaErr;
       }
 
-      // ========================================
-      // GESTION DES ERREURS D'AUTHENTIFICATION
-      // Règle : deviceId = source de vérité, JWT = cache jetable
-      // ========================================
-
-      const authErrors = ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'NO_TOKEN', 'DEVICE_MISMATCH'];
-
-      if (authErrors.includes(error.error) && retryCount === 0) {
-        // Premier essai échoué → Renouveler le token automatiquement
-        console.warn('[API] 🔑 Erreur auth:', error.error);
-        console.warn('[API] → Le token est invalide/expiré, mais deviceId fait foi');
-        console.warn('[API] → Renouvellement automatique du token via /register...');
-
-        // Cas DEVICE_MISMATCH : Supprimer le token ET le deviceId corrompus
-        if (error.error === 'DEVICE_MISMATCH') {
-          console.warn('[API] ⚠️  Token contient un autre deviceId, suppression...');
-          console.warn('[API] ⚠️  Suppression du deviceId corrompu pour forcer la regénération via fingerprint...');
-          await chrome.storage.sync.remove(['jwt', 'deviceId']);
+      // Gestion des erreurs d'authentification
+      if (isAuthError(error.error)) {
+        // Premier essai : tenter renouvellement
+        if (retryCount === 0) {
+          return await handleAuthErrorAndRetry(error, url, content, userLanguage, retryCount);
         }
 
-        // Renouveler le token (appelle /register avec deviceId)
-        // Backend vérifie deviceId → retrouve le compte existant → génère nouveau token
-        const refreshed = await authService.handleExpiredToken();
-
-        if (refreshed) {
-          console.log('[API] ✅ Nouveau token obtenu, retry de la requête...');
-          return await performAnalysis(url, content, userLanguage, retryCount + 1);
-        } else {
-          const refreshErr = new Error('Impossible de renouveler le token');
-          refreshErr.isAuthError = true;
-          throw refreshErr;
-        }
-      }
-
-      // Si retry a déjà été fait et ça échoue encore → Erreur définitive
-      if (authErrors.includes(error.error) && retryCount > 0) {
-        console.error('[API] ❌ Échec après renouvellement - Problème persistant');
-        const authErr = new Error('Erreur d\'authentification persistante. Utilisez "Rafraîchir l\'authentification" dans les paramètres.');
+        // Retry échoué : erreur définitive
+        console.error('[API] ❌ Échec après renouvellement');
+        const authErr = new Error('Erreur d\'authentification persistante');
         authErr.isAuthError = true;
         throw authErr;
       }
@@ -150,6 +156,13 @@ async function performAnalysis(url, content, userLanguage, retryCount = 0) {
     return data;
 
   } catch (error) {
+    // Gestion des erreurs timeout
+    if (error.isTimeout) {
+      const timeoutError = new Error('L\'analyse prend trop de temps. Veuillez réessayer.');
+      timeoutError.isTimeout = true;
+      throw timeoutError;
+    }
+
     // Si c'est une erreur réseau (pas de réponse du serveur)
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       const netError = new Error('Erreur réseau');
@@ -166,7 +179,7 @@ async function performAnalysis(url, content, userLanguage, retryCount = 0) {
 async function pollJob(jobId) {
   for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
     try {
-      const response = await fetch(`${getBackendURL()}/jobs/${jobId}`);
+      const response = await fetchWithTimeout(`${getBackendURL()}/jobs/${jobId}`, {}, 30000);
 
       if (!response.ok) {
         const err = new Error('Erreur lors de la récupération du statut du job');
@@ -208,6 +221,13 @@ async function pollJob(jobId) {
       // Attendre avant le prochain poll
       await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
     } catch (error) {
+      // Gestion des timeouts pendant le polling
+      if (error.isTimeout) {
+        console.warn('[POLL] Timeout sur une requête de polling, retry...');
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+        continue; // Retry
+      }
+
       // Si c'est une erreur réseau
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
         const netError = new Error('Erreur réseau pendant le polling');

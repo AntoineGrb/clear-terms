@@ -1,26 +1,25 @@
 const { cleanText, calculateUrlHash, calculateContentHash } = require('../utils/text-processing');
 const { loadPromptTemplate, callGemini } = require('../utils/gemini');
+const { CACHE_EXPIRATION_MS } = require('../config/constants');
 
 /**
  * Traite un job d'analyse
  */
-async function processJob(jobId, jobs, cache, primaryModel, fallbackModels, apiKey, enforceCacheLimit, userService) {
-  const job = jobs.get(jobId);
+async function processJob(jobId, jobManager, cache, primaryModel, fallbackModels, apiKey, enforceCacheLimit, userService) {
+  const job = jobManager.getJob(jobId);
   if (!job) return;
 
   try {
-    job.status = 'running';
+    jobManager.updateJob(jobId, { status: 'running' });
 
     const { url, content, userLanguage, deviceId } = job;
     const cleanedContent = cleanText(content);
 
-    // Calculer les hashs
+    // Calculer le hash d'URL pour le cache
     const urlHash = calculateUrlHash(url);
-    const contentHash = calculateContentHash(content);
 
     console.log(`👤 [JOB ${jobId}] Device ID: ${deviceId}`);
     console.log(`🔗 [JOB ${jobId}] URL: ${url}`);
-    // console.log(`📊 [JOB ${jobId}] Hash URL: ${urlHash.substring(0, 16)}...`);;
     console.log(`🌍 [JOB ${jobId}] Langue demandée: ${userLanguage}`);
 
     // Vérifier le cache pour cette URL et cette langue
@@ -30,7 +29,7 @@ async function processJob(jobId, jobs, cache, primaryModel, fallbackModels, apiK
       // Vérifier si le cache est expiré (24h)
       const now = new Date();
       const cacheAge = now - new Date(cachedEntry.createdAt);
-      const MAX_CACHE_AGE = 24 * 60 * 60 * 1000; // 24 heures 
+      const MAX_CACHE_AGE = CACHE_EXPIRATION_MS; 
 
       if (cacheAge > MAX_CACHE_AGE) {
         console.log(`⏰ Cache expiré pour URL: ${url} (âge: ${Math.round(cacheAge / 1000 / 60 / 60)}h)`);
@@ -49,7 +48,6 @@ async function processJob(jobId, jobs, cache, primaryModel, fallbackModels, apiK
           // Marquer la source comme 'cache'
           if (cachedReport.metadata) {
             cachedReport.metadata.source = 'cache';
-            cachedReport.metadata.content_hash = contentHash;
           }
 
           // ✅ DÉCRÉMENTER les crédits (cache hit = débit)
@@ -62,8 +60,10 @@ async function processJob(jobId, jobs, cache, primaryModel, fallbackModels, apiK
             }
           }
 
-          job.result = cachedReport;
-          job.status = 'done';
+          jobManager.updateJob(jobId, {
+            result: cachedReport,
+            status: 'done'
+          });
           return;
         }
 
@@ -104,7 +104,7 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
         const newCredits = await userService.decrementCredits(deviceId);
         console.log(`💳 [AI CALL] Crédits décrémentés pour ${deviceId}: ${newCredits} restants`);
         // Stocker dans le job pour pouvoir rembourser en cas d'erreur
-        job.creditDebited = true;
+        jobManager.updateJob(jobId, { creditDebited: true });
       } catch (error) {
         console.error(`❌ [AI CALL] Erreur décrémentation:`, error.message);
         throw new Error('Impossible de décrémenter les crédits');
@@ -154,7 +154,6 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
     // Ajouter des métadonnées
     report.metadata = {
       url_hash: urlHash,
-      content_hash: contentHash,
       analyzed_at: new Date().toISOString(),
       analyzed_url: job.url || 'unknown',
       model_used: primaryModel,
@@ -190,14 +189,17 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
       console.log('=== SCAN END=== \n')
     }
 
-    job.result = report;
-    job.status = 'done';
+    jobManager.updateJob(jobId, {
+      result: report,
+      status: 'done'
+    });
 
   } catch (error) {
     console.error(`❌ Erreur lors du traitement du job ${jobId}:`, error.message);
 
     // 🔄 REMBOURSER les crédits si erreur ET si on avait débité
-    if (job.creditDebited && userService && deviceId) {
+    const currentJob = jobManager.getJob(jobId);
+    if (currentJob && currentJob.creditDebited && userService && deviceId) {
       try {
         const newCredits = await userService.addCredits(deviceId, 1);
         console.log(`💰 [ERROR REFUND] Crédit remboursé pour ${deviceId}: ${newCredits} restants`);
@@ -206,8 +208,10 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
       }
     }
 
-    job.status = 'error';
-    job.error = error.message;
+    jobManager.updateJob(jobId, {
+      status: 'error',
+      error: error.message
+    });
   }
 }
 

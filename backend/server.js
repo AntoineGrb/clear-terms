@@ -11,6 +11,19 @@ const authRoutes = require('./routes/auth-routes');
 const paymentRoutes = require('./routes/payment-routes');
 const userService = require('./services/user-service');
 const { verifyJWT } = require('./middleware/auth-middleware');
+const JobManager = require('./utils/job-manager');
+const {
+  MIN_CONTENT_LENGTH,
+  MAX_CONTENT_LENGTH,
+  CACHE_EXPIRATION_MS,
+  JOB_MAX_AGE_MS,
+  MAX_CACHE_ENTRIES,
+  MAX_JOBS_IN_MEMORY,
+  RATE_LIMIT_WINDOW_MS,
+  RATE_LIMIT_SCAN_MAX,
+  RATE_LIMIT_JOBS_MAX,
+  CACHE_CLEANUP_INTERVAL_MS
+} = require('./config/constants');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,10 +39,8 @@ const FALLBACK_MODELS = [
   'gemini-flash-latest'
 ].filter(Boolean);
 
-const MAX_CACHE_ENTRIES = 1000; // Limite du cache : 1000 URLs max (avec FR + EN)
-
-// Stockage en mémoire
-const jobs = new Map(); // job_id -> { status, url, result, error, createdAt }
+// Stockage en mémoire avec protection contre les fuites mémoire
+const jobManager = new JobManager(MAX_JOBS_IN_MEMORY, JOB_MAX_AGE_MS);
 const cache = new Map(); // url_hash -> { url, domain, reports: { fr: {}, en: {} }, createdAt, lastAccessedAt }
 
 // Trust proxy (nécessaire pour Render et express-rate-limit)
@@ -50,23 +61,75 @@ app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 // Toutes les autres routes utilisent express.json()
 app.use(express.json({ limit: '10mb' }));
 
-// Rate limiting pour /scan (10 requêtes par minute par IP)
+// Rate limiting pour /scan
 const scanLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_SCAN_MAX,
   message: { error: 'Trop de requêtes. Veuillez réessayer dans 1 minute.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Rate limiting pour /jobs (60 requêtes par minute par IP)
+// Rate limiting pour /jobs et autres endpoints
 const jobsLimiter = rateLimit({
-  windowMs: 60 * 1000, 
-  max: 60,
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_JOBS_MAX,
   message: { error: 'Trop de requêtes. Veuillez réessayer dans 1 minute.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// -----------------------------
+// Fonctions utilitaires de validation
+// -----------------------------
+
+/**
+ * Valide et sanitize une URL
+ * @param {string} url - URL à valider
+ * @returns {string} - URL validée
+ * @throws {Error} - Si URL invalide ou dangereuse
+ */
+function sanitizeAndValidateUrl(url) {
+  if (!url || typeof url !== 'string') {
+    throw new Error('URL is required');
+  }
+
+  const trimmedUrl = url.trim();
+
+  if (trimmedUrl.length === 0) {
+    throw new Error('URL cannot be empty');
+  }
+
+  // Validation basique avec validator
+  if (!validator.isURL(trimmedUrl, { require_protocol: true, protocols: ['http', 'https'] })) {
+    throw new Error('Invalid URL format');
+  }
+
+  // Parse l'URL pour validation supplémentaire
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(trimmedUrl);
+  } catch (err) {
+    throw new Error('Invalid URL format');
+  }
+
+  // Bloquer les schemes dangereux (double vérification)
+  const dangerousSchemes = ['file:', 'javascript:', 'data:', 'ftp:', 'ftps:'];
+  if (dangerousSchemes.includes(parsedUrl.protocol)) {
+    throw new Error('URL scheme not allowed');
+  }
+
+  // Bloquer les URLs localhost/internal en production
+  if (process.env.NODE_ENV === 'production') {
+    const hostname = parsedUrl.hostname.toLowerCase();
+    const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
+    if (blockedHosts.includes(hostname) || hostname.startsWith('192.168.') || hostname.startsWith('10.')) {
+      throw new Error('Internal URLs not allowed');
+    }
+  }
+
+  return trimmedUrl;
+}
 
 // -----------------------------
 // Fonctions utilitaires du cache
@@ -152,19 +215,21 @@ app.post('/scan', scanLimiter, verifyJWT, async (req, res) => {
       return res.status(400).json({ error: 'Le champ "content" est requis et doit être une chaîne de caractères' });
     }
 
-    if (content.length < 300) {
-      return res.status(400).json({ error: 'Le contenu est trop court pour être analysé (minimum 300 caractères)' });
+    if (content.length < MIN_CONTENT_LENGTH) {
+      return res.status(400).json({ error: `Le contenu est trop court pour être analysé (minimum ${MIN_CONTENT_LENGTH} caractères)` });
     }
 
-    if (content.length > 500000) {
-      return res.status(413).json({ error: 'Contenu trop long, plus de 500 000 caractères' });
+    if (content.length > MAX_CONTENT_LENGTH) {
+      return res.status(413).json({ error: `Contenu trop long (maximum ${MAX_CONTENT_LENGTH} caractères)` });
     }
 
-    // Validation de l'URL si fournie
-    if (url && typeof url === 'string') {
-      const sanitizedUrl = url.trim();
-      if (sanitizedUrl.length > 0 && !validator.isURL(sanitizedUrl, { require_protocol: true, protocols: ['http', 'https'] })) {
-        return res.status(400).json({ error: 'URL invalide' });
+    // Validation et sanitization de l'URL si fournie
+    let validatedUrl = url || 'unknown';
+    if (url && typeof url === 'string' && url.trim().length > 0) {
+      try {
+        validatedUrl = sanitizeAndValidateUrl(url);
+      } catch (error) {
+        return res.status(400).json({ error: `Invalid URL: ${error.message}` });
       }
     }
 
@@ -173,20 +238,19 @@ app.post('/scan', scanLimiter, verifyJWT, async (req, res) => {
 
     // Créer le job SANS décrémenter (décrémentation dans job-processor)
     const jobId = crypto.randomUUID();
-    jobs.set(jobId, {
+    jobManager.addJob(jobId, {
       status: 'queued',
-      url: url || 'unknown',
+      url: validatedUrl,
       content,
       userLanguage,
       deviceId, // Stocker deviceId pour décrémenter dans le processor
       result: null,
-      error: null,
-      createdAt: Date.now()
+      error: null
     });
 
     // Lancer le traitement en arrière-plan
     // La décrémentation se fera SEULEMENT si cache miss ou nouvelle analyse IA
-    processJob(jobId, jobs, cache, PRIMARY_MODEL, FALLBACK_MODELS, process.env.GEMINI_API_KEY, enforceCacheLimit, userService);
+    processJob(jobId, jobManager, cache, PRIMARY_MODEL, FALLBACK_MODELS, process.env.GEMINI_API_KEY, enforceCacheLimit, userService);
 
     res.json({
       job_id: jobId,
@@ -212,7 +276,7 @@ app.get('/jobs/:id', jobsLimiter, async (req, res) => {
     return res.status(400).json({ error: 'ID de job invalide' });
   }
 
-  const job = jobs.get(id);
+  const job = jobManager.getJob(id);
 
   if (!job) {
     return res.status(404).json({ error: 'Job introuvable' });
@@ -263,7 +327,7 @@ app.get('/jobs/:id', jobsLimiter, async (req, res) => {
  * Recherche dans le cache par hash d'URL
  * Query: ?url_hash=xxx&lang=fr|en
  */
-app.get('/report', (req, res) => {
+app.get('/report', jobsLimiter, (req, res) => {
   const { url_hash, lang } = req.query;
 
   if (!url_hash) {
@@ -299,28 +363,16 @@ app.get('/report', (req, res) => {
  * Healthcheck basique
  */
 app.get('/health', (req, res) => {
+  const jobStats = jobManager.getStats();
   res.json({
     status: 'ok',
-    jobs_count: jobs.size,
+    jobs: jobStats,
     cache_count: cache.size,
     timestamp: new Date().toISOString()
   });
 });
 
-// -----------------------------
-// Nettoyage périodique des vieux jobs (MVP)
-// -----------------------------
-setInterval(() => {
-  const now = Date.now();
-  const maxAge = 60 * 60 * 1000; // 1 heure
-
-  for (const [jobId, job] of jobs.entries()) {
-    if (now - job.createdAt > maxAge) {
-      jobs.delete(jobId);
-      console.log(`🗑️  Job ${jobId} supprimé (trop ancien)`);
-    }
-  }
-}, 10 * 60 * 1000); // Toutes les 10 minutes
+// Le nettoyage des jobs est maintenant géré automatiquement par JobManager
 
 // -----------------------------
 // Nettoyage périodique du cache (24h d'expiration)

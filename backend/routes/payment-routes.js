@@ -109,8 +109,15 @@ router.post('/webhook', async (req, res) => {
     let event;
     try {
       event = stripeService.verifyWebhookSignature(req.body, signature);
+      if (!event || !event.type) {
+        throw new Error('Invalid webhook event structure');
+      } 
     } catch (err) {
-      console.error('❌ [WEBHOOK] Signature invalide:', err.message);
+      console.error('🚨 SECURITY ALERT - Webhook signature verification failed:', {
+      timestamp: new Date().toISOString(),
+      ip: req.ip,
+      error: err.message
+      });
       return res.status(400).json({ error: 'Invalid signature' });
     }
 

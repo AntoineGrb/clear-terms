@@ -43,6 +43,7 @@
   ],
   "host_permissions": [
     "http://localhost:3000/*",
+    "https://clear-terms-staging.onrender.com/*",
     "https://clear-terms.onrender.com/*"
   ],
   "web_accessible_resources": [

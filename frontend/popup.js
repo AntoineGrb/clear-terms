@@ -382,6 +382,25 @@ chrome.storage.local.get(['lastReport', 'pendingToastAction'], async (result) =>
     document.getElementById('remainingScans').textContent = remaining;
   });
 
+  // Vérifier s'il y a un statut de paiement à afficher
+  chrome.storage.local.get(['paymentStatus'], (paymentResult) => {
+    if (paymentResult.paymentStatus) {
+      const { status, scansAdded, timestamp } = paymentResult.paymentStatus;
+
+      // Vérifier que le message n'est pas trop vieux (max 2 min)
+      if (Date.now() - timestamp < 2 * 60 * 1000) {
+        // Afficher automatiquement la page Paramètres
+        showSettingsPage();
+
+        // Afficher le message sous les crédits
+        displayPaymentStatusMessage(status, scansAdded);
+      }
+
+      // Nettoyer le statut après affichage
+      chrome.storage.local.remove(['paymentStatus']);
+    }
+  });
+
   // Initialiser l'authentification (génère deviceId + JWT si première fois)
   authService.getJWT().catch((error) => {
     console.error('[POPUP] Erreur initialisation auth:', error);
@@ -731,3 +750,41 @@ document.getElementById('copySupportKeyButton').addEventListener('click', async 
 document.getElementById('supportKeyInput').addEventListener('click', (e) => {
   e.target.select();
 });
+
+/**
+ * Afficher un message de statut de paiement sous les crédits
+ */
+function displayPaymentStatusMessage(status, scansAdded) {
+  const creditsDiv = document.getElementById('remainingScans').parentElement;
+
+  // Créer le div de message s'il n'existe pas
+  let messageDiv = document.getElementById('paymentStatusMessage');
+  if (!messageDiv) {
+    messageDiv = document.createElement('div');
+    messageDiv.id = 'paymentStatusMessage';
+    creditsDiv.appendChild(messageDiv);
+  }
+
+  if (status === 'success') {
+    messageDiv.innerHTML = `
+      <div class="mt-3 p-3 bg-green-50 rounded-md border border-green-200">
+        <p class="text-xs text-green-800 font-medium">
+          ✅ Crédits ajoutés${scansAdded ? ` (+${scansAdded} scans)` : ''}
+        </p>
+      </div>
+    `;
+  } else {
+    messageDiv.innerHTML = `
+      <div class="mt-3 p-3 bg-red-50 rounded-md border border-red-200">
+        <p class="text-xs text-red-800 font-medium">
+          ❌ Paiement refusé
+        </p>
+      </div>
+    `;
+  }
+
+  // Auto-suppression après 5 secondes
+  setTimeout(() => {
+    messageDiv.remove();
+  }, 5000);
+}

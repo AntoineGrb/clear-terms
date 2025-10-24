@@ -44,11 +44,10 @@ router.post('/create-checkout-session', verifyJWT, async (req, res) => {
       });
     }
 
-    // URLs de redirection vers l'extension Chrome
-    const extensionId = process.env.CHROME_EXTENSION_ID || 'gfjdheoldmigelnnmkdagpkfacofjkog';
-    const baseUrl = `chrome-extension://${extensionId}`;
-    const successUrl = `${baseUrl}/pages/payment-success.html?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${baseUrl}/pages/payment-error.html`;
+    // URLs de redirection vers le backend
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+    const successUrl = `${backendUrl}/api/payments/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${backendUrl}/api/payments/cancel`;
 
     // Utiliser le stripeCustomerId existant ou en créer un nouveau
     let stripeCustomerId = user.stripeCustomerId;
@@ -209,6 +208,90 @@ router.get('/history', verifyJWT, async (req, res) => {
     res.status(500).json({
       error: 'GET_HISTORY_ERROR',
       message: 'Failed to get purchase history'
+    });
+  }
+});
+
+/**
+ * GET /api/payments/success
+ * Page de redirection après paiement réussi
+ */
+router.get('/success', (req, res) => {
+  res.send(`
+    <html>
+      <head><title>Paiement réussi</title></head>
+      <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+        <h1>✅ Paiement réussi !</h1>
+        <p>Vos crédits sont en cours d'ajout...</p>
+        <p>Vous pouvez fermer cette page et retourner à l'extension.</p>
+      </body>
+    </html>
+  `);
+});
+
+/**
+ * GET /api/payments/cancel
+ * Page de redirection après annulation
+ */
+router.get('/cancel', (req, res) => {
+  res.send(`
+    <html>
+      <head><title>Paiement annulé</title></head>
+      <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+        <h1>❌ Paiement annulé</h1>
+        <p>Vous pouvez fermer cette page et retourner à l'extension.</p>
+      </body>
+    </html>
+  `);
+});
+
+/**
+ * GET /api/payments/check-pending
+ * Vérifier si un paiement est en attente/validé
+ *
+ * Query: { deviceId: string }
+ * Response: { hasPendingPayment: boolean, status?: string, amount?: number, scansAdded?: number }
+ */
+router.get('/check-pending', verifyJWT, async (req, res) => {
+  try {
+    const { deviceId } = req.query;
+
+    if (!deviceId) {
+      return res.status(400).json({
+        error: 'MISSING_DEVICE_ID',
+        message: 'deviceId is required'
+      });
+    }
+
+    const user = await userService.getUser(deviceId);
+    if (!user) {
+      return res.status(404).json({
+        error: 'USER_NOT_FOUND',
+        message: 'User not found'
+      });
+    }
+
+    // Récupérer le dernier achat et vérifier son statut
+    const purchases = user.purchaseHistory || [];
+    const lastPurchase = purchases[purchases.length - 1];
+
+    // Vérifier si l'achat est récent (moins de 5 minutes)
+    if (lastPurchase && lastPurchase.timestamp > Date.now() - 5 * 60 * 1000) {
+      res.json({
+        hasPendingPayment: true,
+        status: lastPurchase.status, // 'completed' ou 'failed'
+        amount: lastPurchase.amount,
+        scansAdded: lastPurchase.scansAdded
+      });
+    } else {
+      res.json({ hasPendingPayment: false });
+    }
+
+  } catch (error) {
+    console.error('[PAYMENT] Check pending error:', error);
+    res.status(500).json({
+      error: 'CHECK_PENDING_ERROR',
+      message: 'Failed to check pending payment'
     });
   }
 });

@@ -7,6 +7,106 @@ importScripts('../utils/hash.js');
 
 console.log('🚀 Clear Terms Service Worker démarré');
 
+// ========================================
+// Système de vérification des paiements en attente
+// ========================================
+
+/**
+ * Vérifier périodiquement si un paiement est en attente
+ */
+async function checkPendingPayment() {
+  try {
+    const result = await chrome.storage.local.get(['paymentPending']);
+
+    if (!result.paymentPending) {
+      return; // Pas de paiement en attente
+    }
+
+    // Vérifier que le paiement n'est pas trop vieux (max 10 min)
+    if (Date.now() - result.paymentPending.timestamp > 10 * 60 * 1000) {
+      console.log('⏰ [PAYMENT] Paiement en attente expiré, nettoyage');
+      await chrome.storage.local.remove(['paymentPending']);
+      return;
+    }
+
+    console.log('🔍 [PAYMENT] Vérification paiement en attente...');
+
+    // Récupérer les infos d'authentification depuis le storage
+    const authData = await chrome.storage.sync.get(['deviceId', 'jwt']);
+    const deviceId = authData.deviceId;
+    const jwt = authData.jwt;
+
+    if (!deviceId || !jwt) {
+      console.warn('⚠️ [PAYMENT] Pas de deviceId ou JWT');
+      return;
+    }
+
+    const backendUrl = getBackendURL();
+
+    const response = await fetch(`${backendUrl}/api/payments/check-pending?deviceId=${deviceId}`, {
+      headers: { 'Authorization': `Bearer ${jwt}` }
+    });
+
+    if (!response.ok) {
+      console.warn('⚠️ [PAYMENT] Erreur API check-pending:', response.status);
+      return;
+    }
+
+    const data = await response.json();
+
+    if (data.hasPendingPayment && data.status === 'completed') {
+      console.log('✅ [PAYMENT] Paiement validé!', data);
+
+      // Rafraîchir les crédits depuis le backend
+      const creditsResponse = await fetch(`${backendUrl}/api/auth/credits?deviceId=${deviceId}`, {
+        headers: { 'Authorization': `Bearer ${jwt}` }
+      });
+
+      if (creditsResponse.ok) {
+        const creditsData = await creditsResponse.json();
+        await chrome.storage.sync.set({ remainingScans: creditsData.remainingScans });
+        console.log('💰 [PAYMENT] Crédits mis à jour:', creditsData.remainingScans);
+      }
+
+      // Stocker le statut du paiement
+      await chrome.storage.local.set({
+        paymentStatus: {
+          status: 'success',
+          scansAdded: data.scansAdded,
+          timestamp: Date.now()
+        }
+      });
+
+      // Supprimer le paiement en attente
+      await chrome.storage.local.remove(['paymentPending']);
+
+      // Ouvrir la popup automatiquement sur la page Paramètres
+      chrome.action.openPopup();
+
+    } else if (data.hasPendingPayment && data.status === 'failed') {
+      console.log('❌ [PAYMENT] Paiement échoué', data);
+
+      await chrome.storage.local.set({
+        paymentStatus: {
+          status: 'failed',
+          timestamp: Date.now()
+        }
+      });
+
+      await chrome.storage.local.remove(['paymentPending']);
+
+      // Ouvrir la popup
+      chrome.action.openPopup();
+    }
+
+  } catch (error) {
+    console.error('❌ [PAYMENT] Erreur vérification paiement:', error);
+  }
+}
+
+// Vérifier toutes les 3 secondes
+setInterval(checkPendingPayment, 3000);
+
 /**
  * Détecte la langue du navigateur
  */

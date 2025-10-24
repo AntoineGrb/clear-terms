@@ -209,7 +209,7 @@ function createToast(type, url, data) {
     const secondaryBtn = shadow.querySelector('[data-action="secondary"]');
 
     primaryBtn.addEventListener('click', () => {
-      handleToastPrimaryAction(type, url, hash, data);
+      handleToastPrimaryAction(type, url, data);
       toastContainer.remove();
     });
 

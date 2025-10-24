@@ -45,10 +45,10 @@ async function detectAndAnalyze() {
     }, (response) => {
       if (response && response.found) {
         // Rapport trouvé dans l'historique
-        createToast('found', url, null, response.report);
+        createToast('found', url, response.report);
       } else {
         // Pas de rapport dans l'historique;
-        createToast('detected', url, null, content);
+        createToast('detected', url, content);
       }
     });
 

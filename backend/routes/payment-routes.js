@@ -146,16 +146,15 @@ router.post('/webhook', async (req, res) => {
         const paymentIntent = event.data.object;
         console.log(`❌ [WEBHOOK] Payment failed: ${paymentIntent.id}`);
 
-        // Optionnel: enregistrer l'échec
         const deviceId = paymentIntent.metadata?.deviceId;
-        if (deviceId) {
-          await userService.recordPurchase(deviceId, {
-            stripePaymentIntentId: paymentIntent.id,
-            amount: paymentIntent.amount / 100, // Stripe envoie en centimes
-            status: 'failed'
-          });
-        }
-        break;
+-         if (deviceId) {
+-           await userService.recordPurchase(deviceId, {
+-             stripePaymentIntentId: paymentIntent.id,
+-             amount: paymentIntent.amount / 100, // Stripe envoie en centimes
+-             status: 'failed'
+-           });
+-         }
+-         break;
       }
 
       default:
@@ -218,12 +217,54 @@ router.get('/history', verifyJWT, async (req, res) => {
  */
 router.get('/success', (req, res) => {
   res.send(`
+    <!DOCTYPE html>
     <html>
-      <head><title>Paiement réussi</title></head>
-      <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-        <h1>✅ Paiement réussi !</h1>
-        <p>Vos crédits sont en cours d'ajout...</p>
-        <p>Vous pouvez fermer cette page et retourner à l'extension.</p>
+      <head>
+        <meta charset="UTF-8">
+        <title>Paiement réussi</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+          }
+          .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+          }
+          h1 { color: #10b981; margin-bottom: 20px; }
+          p { color: #6b7280; margin: 10px 0; }
+          .countdown { font-size: 14px; color: #9ca3af; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>✅ Paiement réussi !</h1>
+          <p>Vos crédits sont en cours d'ajout...</p>
+          <p>Retournez à l'extension pour voir vos crédits mis à jour.</p>
+          <p class="countdown">Cette page se fermera automatiquement dans <span id="counter">5</span> secondes...</p>
+        </div>
+        <script>
+          let count = 5;
+          const counterEl = document.getElementById('counter');
+          const interval = setInterval(() => {
+            count--;
+            counterEl.textContent = count;
+            if (count <= 0) {
+              clearInterval(interval);
+              window.close();
+            }
+          }, 1000);
+        </script>
       </body>
     </html>
   `);
@@ -235,11 +276,54 @@ router.get('/success', (req, res) => {
  */
 router.get('/cancel', (req, res) => {
   res.send(`
+    <!DOCTYPE html>
     <html>
-      <head><title>Paiement annulé</title></head>
-      <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-        <h1>❌ Paiement annulé</h1>
-        <p>Vous pouvez fermer cette page et retourner à l'extension.</p>
+      <head>
+        <meta charset="UTF-8">
+        <title>Paiement annulé</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+          }
+          .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+          }
+          h1 { color: #ef4444; margin-bottom: 20px; }
+          p { color: #6b7280; margin: 10px 0; }
+          .countdown { font-size: 14px; color: #9ca3af; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>❌ Paiement annulé</h1>
+          <p>Votre paiement a été annulé.</p>
+          <p>Vous pouvez réessayer depuis l'extension.</p>
+          <p class="countdown">Cette page se fermera automatiquement dans <span id="counter">5</span> secondes...</p>
+        </div>
+        <script>
+          let count = 5;
+          const counterEl = document.getElementById('counter');
+          const interval = setInterval(() => {
+            count--;
+            counterEl.textContent = count;
+            if (count <= 0) {
+              clearInterval(interval);
+              window.close();
+            }
+          }, 1000);
+        </script>
       </body>
     </html>
   `);

@@ -89,15 +89,6 @@ async function openCheckout(priceId, amount) {
   try {
     const session = await createCheckoutSession(priceId, amount);
 
-    // Stocker l'info qu'un paiement est en cours
-    await chrome.storage.local.set({
-      paymentPending: {
-        timestamp: Date.now(),
-        amount: amount,
-        sessionId: session.sessionId
-      }
-    });
-
     // Ouvrir l'URL Stripe Checkout dans un nouvel onglet
     chrome.tabs.create({
       url: session.url,

@@ -290,32 +290,18 @@ app.get('/jobs/:id', jobsLimiter, async (req, res) => {
   if (job.status === 'done' && job.result) {
     response.result = job.result;
 
-    // Ajouter les crédits restants si deviceId disponible
-    if (job.deviceId) {
-      try {
-        const user = await userService.getUser(job.deviceId);
-        if (user) {
-          response.remainingScans = user.remainingScans;
-        }
-      } catch (error) {
-        console.error('[JOBS] Erreur récupération crédits:', error.message);
-      }
+    // Ajouter les crédits restants depuis le cache du job (pas de DB call)
+    if (job.remainingScans !== undefined) {
+      response.remainingScans = job.remainingScans;
     }
   }
 
   if (job.status === 'error' && job.error) {
     response.error = job.error;
 
-    // Ajouter les crédits restants même en cas d'erreur (pour refund)
-    if (job.deviceId) {
-      try {
-        const user = await userService.getUser(job.deviceId);
-        if (user) {
-          response.remainingScans = user.remainingScans;
-        }
-      } catch (error) {
-        console.error('[JOBS] Erreur récupération crédits:', error.message);
-      }
+    // Ajouter les crédits restants depuis le cache du job (pas de DB call)
+    if (job.remainingScans !== undefined) {
+      response.remainingScans = job.remainingScans;
     }
   }
 

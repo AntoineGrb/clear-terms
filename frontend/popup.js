@@ -413,38 +413,18 @@ chrome.storage.local.get(['lastReport', 'pendingToastAction'], async (result) =>
 });
 
 /**
- * Charge et affiche les crédits depuis le backend
+ * Charge et affiche les crédits depuis le cache uniquement
  */
 async function loadAndDisplayCredits() {
   try {
-    // Afficher d'abord la valeur en cache
+    // Afficher la valeur en cache (mise à jour après chaque scan/paiement)
     const cachedResult = await chrome.storage.sync.get(['remainingScans']);
     const cachedRemaining = cachedResult.remainingScans !== undefined ? cachedResult.remainingScans : 20;
     document.getElementById('remainingScans').textContent = cachedRemaining;
 
-    // Puis rafraîchir depuis le backend
-    const deviceId = await authService.getDeviceId();
-    const jwt = await authService.getJWT();
-    const backendUrl = getBackendURL();
-
-    const response = await fetchWithTimeout(`${backendUrl}/api/auth/credits?deviceId=${deviceId}`, {
-      headers: {
-        'Authorization': `Bearer ${jwt}`
-      }
-    }, 30000);
-
-    if (response.ok) {
-      const data = await response.json();
-      document.getElementById('remainingScans').textContent = data.remainingScans;
-
-      // Mettre à jour le cache
-      await chrome.storage.sync.set({ remainingScans: data.remainingScans });
-
-      console.log('💰 [POPUP] Crédits rafraîchis depuis le backend:', data.remainingScans);
-    }
+    console.log('💰 [POPUP] Crédits affichés depuis le cache:', cachedRemaining);
   } catch (error) {
-    console.error('[POPUP] Erreur rafraîchissement crédits:', error);
-    // Pas critique, on garde la valeur en cache
+    console.error('[POPUP] Erreur affichage crédits:', error);
   }
 }
 

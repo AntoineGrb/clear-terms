@@ -51,9 +51,10 @@ async function processJob(jobId, jobManager, cache, primaryModel, fallbackModels
           }
 
           // ✅ DÉCRÉMENTER les crédits (cache hit = débit)
+          let newCredits;
           if (userService && deviceId) {
             try {
-              const newCredits = await userService.decrementCredits(deviceId);
+              newCredits = await userService.decrementCredits(deviceId);
               console.log(`💳 [CACHE HIT] Crédits décrémentés pour ${deviceId}: ${newCredits} restants`);
             } catch (error) {
               console.error(`❌ [CACHE HIT] Erreur décrémentation:`, error.message);
@@ -62,7 +63,8 @@ async function processJob(jobId, jobManager, cache, primaryModel, fallbackModels
 
           jobManager.updateJob(jobId, {
             result: cachedReport,
-            status: 'done'
+            status: 'done',
+            remainingScans: newCredits
           });
           return;
         }
@@ -99,12 +101,13 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
     const fullPrompt = languageInstruction + promptTemplate + '\n\n' + cleanedContent;
 
     // ✅ DÉCRÉMENTER les crédits AVANT l'appel IA (cache miss)
+    let newCredits;
     if (userService && deviceId) {
       try {
-        const newCredits = await userService.decrementCredits(deviceId);
+        newCredits = await userService.decrementCredits(deviceId);
         console.log(`💳 [AI CALL] Crédits décrémentés pour ${deviceId}: ${newCredits} restants`);
         // Stocker dans le job pour pouvoir rembourser en cas d'erreur
-        jobManager.updateJob(jobId, { creditDebited: true });
+        jobManager.updateJob(jobId, { creditDebited: true, remainingScans: newCredits });
       } catch (error) {
         console.error(`❌ [AI CALL] Erreur décrémentation:`, error.message);
         throw new Error('Impossible de décrémenter les crédits');
@@ -199,10 +202,11 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
 
     // 🔄 REMBOURSER les crédits si erreur ET si on avait débité
     const currentJob = jobManager.getJob(jobId);
+    let refundedCredits;
     if (currentJob && currentJob.creditDebited && userService && deviceId) {
       try {
-        const newCredits = await userService.addCredits(deviceId, 1);
-        console.log(`💰 [ERROR REFUND] Crédit remboursé pour ${deviceId}: ${newCredits} restants`);
+        refundedCredits = await userService.addCredits(deviceId, 1);
+        console.log(`💰 [ERROR REFUND] Crédit remboursé pour ${deviceId}: ${refundedCredits} restants`);
       } catch (refundError) {
         console.error(`❌ [ERROR REFUND] Impossible de rembourser le crédit:`, refundError.message);
       }
@@ -210,7 +214,8 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
 
     jobManager.updateJob(jobId, {
       status: 'error',
-      error: error.message
+      error: error.message,
+      remainingScans: refundedCredits
     });
   }
 }

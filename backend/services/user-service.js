@@ -148,6 +148,7 @@ class UserService {
       // Ajouter les crédits
       user.remainingScans += amount;
       user.lastUsedAt = new Date().toISOString();
+      user.plan = 'premium';
 
       data.users[deviceId] = user;
       await this._writeUsers(data);

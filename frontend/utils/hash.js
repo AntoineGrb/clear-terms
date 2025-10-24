@@ -70,16 +70,49 @@ function normalizeUrl(url) {
   }
 }
 
+/**
+ * Supprime tous les rapports de l'historique correspondant à une URL donnée
+ * @param {string} url - URL de la page à nettoyer
+ * @returns {Promise<number>} - Nombre de rapports supprimés
+ */
+async function removeReportsByUrl(url) {
+  try {
+    const { reportsHistory = [] } = await chrome.storage.local.get(['reportsHistory']);
+    const normalizedUrl = normalizeUrl(url);
+
+    // Filtrer les rapports qui ne correspondent pas à l'URL
+    const filteredHistory = reportsHistory.filter(entry => {
+      const reportUrl = entry.report?.metadata?.analyzed_url;
+      const normalizedReportUrl = normalizeUrl(reportUrl);
+      return normalizedReportUrl !== normalizedUrl;
+    });
+
+    const removedCount = reportsHistory.length - filteredHistory.length;
+
+    if (removedCount > 0) {
+      await chrome.storage.local.set({ reportsHistory: filteredHistory });
+      console.log(`🗑️ [HISTORY] ${removedCount} rapport(s) supprimé(s) pour l'URL: ${normalizedUrl}`);
+    }
+
+    return removedCount;
+  } catch (error) {
+    console.error('❌ [HISTORY] Erreur lors de la suppression des rapports:', error);
+    return 0;
+  }
+}
+
 // Export global (compatible service worker et page HTML)
 if (typeof window !== 'undefined') {
   window.hashUtils = {
     generateContentHash,
-    findReportInHistory
+    findReportInHistory,
+    removeReportsByUrl
   };
 } else if (typeof self !== 'undefined') {
   // Pour les service workers
   self.hashUtils = {
     generateContentHash,
-    findReportInHistory
+    findReportInHistory,
+    removeReportsByUrl
   };
 }

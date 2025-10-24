@@ -87,6 +87,10 @@ async function handleAnalysis(forceNew = false) {
       }
     } else {
       console.log('  ⏭️ Recherche ignorée (relance forcée)');
+
+      // Nettoyer l'historique pour cette URL afin d'éviter les divergences
+      console.log('  🗑️ Nettoyage de l\'historique pour cette URL...');
+      await hashUtils.removeReportsByUrl(url);
     }
 
     // Pas de rapport dans l'historique OU relance forcée : lancer une analyse

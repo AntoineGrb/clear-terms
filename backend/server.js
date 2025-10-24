@@ -372,6 +372,232 @@ app.get('/health', (req, res) => {
   });
 });
 
+/**
+ * GET /payment-success
+ * Page de confirmation de paiement
+ */
+app.get('/payment-success', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Paiement réussi - Clear Terms</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        .container {
+          background: white;
+          border-radius: 20px;
+          padding: 40px;
+          max-width: 500px;
+          width: 100%;
+          text-align: center;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .success-icon {
+          width: 80px;
+          height: 80px;
+          margin: 0 auto 20px;
+          background: #10b981;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: scaleIn 0.5s ease-out;
+        }
+        .checkmark {
+          width: 40px;
+          height: 40px;
+          border: 4px solid white;
+          border-left: none;
+          border-top: none;
+          transform: rotate(45deg);
+          margin-top: -10px;
+        }
+        h1 {
+          color: #1f2937;
+          font-size: 28px;
+          margin-bottom: 10px;
+        }
+        p {
+          color: #6b7280;
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 30px;
+        }
+        .message {
+          background: #f3f4f6;
+          padding: 15px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+        }
+        .message p {
+          margin: 0;
+          color: #374151;
+          font-weight: 500;
+        }
+        @keyframes scaleIn {
+          0% {
+            transform: scale(0);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="success-icon">
+          <div class="checkmark"></div>
+        </div>
+        <h1>Paiement réussi !</h1>
+        <p>Merci pour votre achat. Vos crédits ont été ajoutés à votre compte.</p>
+        <div class="message">
+          <p>Vous pouvez maintenant fermer cette page et retourner à l'extension.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+/**
+ * GET /payment-cancel
+ * Page d'annulation de paiement
+ */
+app.get('/payment-cancel', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Paiement annulé - Clear Terms</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+          background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        .container {
+          background: white;
+          border-radius: 20px;
+          padding: 40px;
+          max-width: 500px;
+          width: 100%;
+          text-align: center;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .error-icon {
+          width: 80px;
+          height: 80px;
+          margin: 0 auto 20px;
+          background: #ef4444;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: scaleIn 0.5s ease-out;
+        }
+        .cross {
+          width: 40px;
+          height: 40px;
+          position: relative;
+        }
+        .cross::before,
+        .cross::after {
+          content: '';
+          position: absolute;
+          width: 4px;
+          height: 40px;
+          background: white;
+          left: 50%;
+          top: 50%;
+        }
+        .cross::before {
+          transform: translate(-50%, -50%) rotate(45deg);
+        }
+        .cross::after {
+          transform: translate(-50%, -50%) rotate(-45deg);
+        }
+        h1 {
+          color: #1f2937;
+          font-size: 28px;
+          margin-bottom: 10px;
+        }
+        p {
+          color: #6b7280;
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 30px;
+        }
+        .message {
+          background: #fef2f2;
+          padding: 15px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+        }
+        .message p {
+          margin: 0;
+          color: #991b1b;
+          font-weight: 500;
+        }
+        @keyframes scaleIn {
+          0% {
+            transform: scale(0);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="error-icon">
+          <div class="cross"></div>
+        </div>
+        <h1>Paiement annulé</h1>
+        <p>Votre paiement a été annulé. Aucun montant n'a été débité.</p>
+        <div class="message">
+          <p>Vous pouvez fermer cette page et réessayer plus tard.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
 // Le nettoyage des jobs est maintenant géré automatiquement par JobManager
 
 // -----------------------------

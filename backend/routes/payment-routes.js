@@ -44,9 +44,10 @@ router.post('/create-checkout-session', verifyJWT, async (req, res) => {
       });
     }
 
-    // Pas de redirection - Stripe fermera automatiquement la page
-    const successUrl = 'https://stripe.com/success';
-    const cancelUrl = 'https://stripe.com/cancel';
+    // URLs de redirection vers les pages de confirmation
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+    const successUrl = `${backendUrl}/payment-success`;
+    const cancelUrl = `${backendUrl}/payment-cancel`;
 
     // Utiliser le stripeCustomerId existant ou en créer un nouveau
     let stripeCustomerId = user.stripeCustomerId;

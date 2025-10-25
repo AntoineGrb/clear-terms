@@ -4,7 +4,7 @@
 
 /**
  * Fonction principale de détection, lancée au chargement de la page
- * Détecte et lance l'analyse automatique si CGU détectées
+ * Détecte les CGU et affiche un toast approprié (avec ou sans rapport dans l'historique)
  */
 async function detectAndAnalyze() {
   try {
@@ -34,19 +34,26 @@ async function detectAndAnalyze() {
       return;
     }
 
-    console.log('[Clear Terms] ✅ CGU détectée');
+    // ---- Étape 3: Vérifier l'historique utilisateur -----
+    const userLanguage = await chrome.storage.local.get(['userLanguage']).then(d => d.userLanguage || 'fr');
 
-    // Afficher le toast
-    createToast();
-
-    // Lancer l'analyse en arrière-plan
+    // Demander au background script de vérifier l'historique par URL
     chrome.runtime.sendMessage({
-      type: 'AUTO_ANALYZE',
+      type: 'CHECK_HISTORY',
       url: url,
-      content: content
+      language: userLanguage
+    }, (response) => {
+      if (response && response.found) {
+        // Rapport trouvé dans l'historique
+        createToast('found', url, response.report);
+      } else {
+        // Pas de rapport dans l'historique;
+        createToast('detected', url, content);
+      }
     });
+
   } catch (error) {
-    // Erreur silencieuse pour l'utilisateur
+    console.error('[Clear Terms] Erreur détection:', error);
   }
 }
 

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acheter des crédits - Clear Terms</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../output.css">
+</head>
+<body class="min-h-screen bg-slate-100">
+  <!-- Header -->
+  <div class="px-6 py-5 text-white shadow-md bg-gradient-to-br from-primary-500 to-secondary-500">
+    <div class="max-w-5xl mx-auto">
+      <h1 class="mb-1 text-xl font-semibold" data-i18n="headerTitle">Clear Terms</h1>
+      <p class="text-sm opacity-90" data-i18n="billingTitle">Acheter des crédits pour scanner les conditions </p>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="max-w-5xl px-6 py-8 mx-auto">
+    <!-- Crédits actuels -->
+    <div class="p-6 mb-6 text-center bg-white rounded-lg shadow-sm">
+      <p class="mb-2 text-sm text-gray-600" data-i18n="billingCurrentCredits">Scans restants</p>
+      <div class="text-5xl font-bold text-primary-600" id="remainingScans">20</div>
+    </div>
+
+    <!-- Introduction -->
+    <div class="p-6 mb-6 bg-white rounded-lg shadow-sm">
+      <h2 class="mb-3 text-lg font-semibold text-gray-900" data-i18n="billingIntroTitle">Pourquoi acheter des crédits ?</h2>
+      <ul class="space-y-2 text-sm text-gray-700">
+        <li class="flex items-start gap-2">
+          <span class="flex-shrink-0 mt-0.5 text-green-500">✓</span>
+          <span data-i18n="billingFeature1">Analyses IA instantanées de toutes les CGU et Politiques de Confidentialité</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="flex-shrink-0 mt-0.5 text-green-500">✓</span>
+          <span data-i18n="billingFeature2">Scores détaillés par catégorie (données, droits, sécurité...)</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="flex-shrink-0 mt-0.5 text-green-500">✓</span>
+          <span data-i18n="billingFeature3">Historique illimité de vos analyses</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="flex-shrink-0 mt-0.5 text-green-500">✓</span>
+          <span data-i18n="billingFeature4">Détection automatique avec toast personnalisable</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="flex-shrink-0 mt-0.5 text-green-500">✓</span>
+          <span data-i18n="billingFeature5">Export CSV/JSON de vos rapports</span>
+        </li>
+      </ul>
+      <p class="mt-4 text-xs italic text-gray-500" data-i18n="billingIntroNote">
+        Les 20 premiers scans étaient gratuits pour découvrir l'outil. Merci de votre confiance !
+      </p>
+    </div>
+
+    <!-- Plans de paiement -->
+    <div class="grid gap-4 mb-6 md:grid-cols-3">
+      <!-- Pack Standard -->
+      <div class="relative p-6 transition-shadow bg-white rounded-lg shadow-sm hover:shadow-md">
+        <h3 class="mb-2 text-base font-semibold text-gray-900" data-i18n="billingPlanStandardTitle">Pack Standard</h3>
+        <div class="mb-4">
+          <span class="text-3xl font-bold text-gray-900">2€</span>
+        </div>
+        <p class="mb-4 text-2xl font-semibold text-primary-600">20 scans</p>
+        <p class="mb-4 text-xs text-gray-500" data-i18n="billingPlanStandardDesc">Pour une utilisation ponctuelle</p>
+        <button class="w-full py-2.5 px-4 bg-primary-500 hover:bg-primary-600 text-white rounded-md font-medium text-sm transition-colors buy-button" data-plan="standard" data-i18n="buyNow">
+          Acheter maintenant
+        </button>
+      </div>
+
+      <!-- Pack Confort (populaire) -->
+      <div class="relative p-6 transition-shadow bg-white border-2 rounded-lg shadow-md border-primary-500 hover:shadow-lg">
+        <div class="absolute px-3 py-1 text-xs font-semibold text-white -translate-x-1/2 rounded-full -top-3 left-1/2 bg-primary-500" data-i18n="billingPopular">
+          Populaire
+        </div>
+        <h3 class="mb-2 text-base font-semibold text-gray-900" data-i18n="billingPlanComfortTitle">Pack Confort</h3>
+        <div class="mb-4">
+          <span class="text-3xl font-bold text-gray-900">5€</span>
+        </div>
+        <p class="mb-4 text-2xl font-semibold text-primary-600">100 scans</p>
+        <p class="mb-4 text-xs text-gray-500" data-i18n="billingPlanComfortDesc">Meilleur rapport qualité/prix</p>
+        <button class="w-full py-2.5 px-4 bg-primary-500 hover:bg-primary-600 text-white rounded-md font-medium text-sm transition-colors buy-button" data-plan="comfort" data-i18n="buyNow">
+          Acheter maintenant
+        </button>
+      </div>
+
+      <!-- Pack Pro -->
+      <div class="relative p-6 transition-shadow bg-white rounded-lg shadow-sm hover:shadow-md">
+        <h3 class="mb-2 text-base font-semibold text-gray-900" data-i18n="billingPlanProTitle">Pack Pro</h3>
+        <div class="mb-4">
+          <span class="text-3xl font-bold text-gray-900">20€</span>
+        </div>
+        <p class="mb-4 text-2xl font-semibold text-primary-600">1000 scans</p>
+        <p class="mb-4 text-xs text-gray-500" data-i18n="billingPlanProDesc">Pour une utilisation intensive</p>
+        <button class="w-full py-2.5 px-4 bg-primary-500 hover:bg-primary-600 text-white rounded-md font-medium text-sm transition-colors buy-button" data-plan="pro" data-i18n="buyNow">
+          Acheter maintenant
+        </button>
+      </div>
+    </div>
+
+    <!-- FAQ / Notes -->
+    <div class="p-6 bg-white rounded-lg shadow-sm">
+      <h3 class="mb-3 text-lg font-semibold text-gray-900" data-i18n="billingFaqTitle">Questions fréquentes</h3>
+      <div class="space-y-3 text-sm text-gray-700">
+        <div>
+          <p class="font-medium text-gray-900" data-i18n="billingFaq1Q">Les crédits expirent-ils ?</p>
+          <p class="mt-1" data-i18n="billingFaq1A">Non, vos crédits sont associés à votre navigateur et n'expirent pas. Utilisez-les à votre rythme.</p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-900" data-i18n="billingFaq2Q">Que se passe-t-il si une analyse échoue ?</p>
+          <p class="mt-1" data-i18n="billingFaq2A">Si une analyse échoue pour une raison technique, le crédit vous est automatiquement recrédité.</p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-900" data-i18n="billingFaq3Q">Les analyses en cache consomment-elles des crédits ?</p>
+          <p class="mt-1" data-i18n="billingFaq3A">Non ! Si une CGU a déjà été analysée (par vous ou un autre utilisateur), le rapport est instantané et gratuit.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Retour -->
+    <div class="mt-6 text-center">
+      <button id="backButton" class="text-sm font-medium transition-colors text-primary-600 hover:text-primary-700" data-i18n="backToApp">
+        Fermer la page
+      </button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../../lang/i18n.js"></script>
+  <script src="../../utils/translations.js"></script>
+  <script src="../../config/api-config.js"></script>
+  <script src="../../services/auth-service.js"></script>
+  <script src="../../services/payment-service.js"></script>
+  <script src="billing.js"></script>
+</body>
+</html>

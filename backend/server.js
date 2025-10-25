@@ -7,6 +7,25 @@ const validator = require('validator');
 require('dotenv').config();
 
 const { processJob } = require('./services/job-processor');
+const authRoutes = require('./routes/auth-routes');
+const paymentRoutes = require('./routes/payment-routes');
+const userService = require('./services/user-service');
+const { verifyJWT } = require('./middleware/auth-middleware');
+const JobManager = require('./utils/job-manager');
+const metricsStore = require('./utils/metrics-store');
+const metricsMiddleware = require('./middleware/metrics-middleware');
+const {
+  MIN_CONTENT_LENGTH,
+  MAX_CONTENT_LENGTH,
+  CACHE_EXPIRATION_MS,
+  JOB_MAX_AGE_MS,
+  MAX_CACHE_ENTRIES,
+  MAX_JOBS_IN_MEMORY,
+  RATE_LIMIT_WINDOW_MS,
+  RATE_LIMIT_SCAN_MAX,
+  RATE_LIMIT_JOBS_MAX,
+  CACHE_CLEANUP_INTERVAL_MS
+} = require('./config/constants');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,10 +41,8 @@ const FALLBACK_MODELS = [
   'gemini-flash-latest'
 ].filter(Boolean);
 
-const MAX_CACHE_ENTRIES = 1000; // Limite du cache : 1000 URLs max (avec FR + EN)
-
-// Stockage en mémoire
-const jobs = new Map(); // job_id -> { status, url, result, error, createdAt }
+// Stockage en mémoire avec protection contre les fuites mémoire
+const jobManager = new JobManager(MAX_JOBS_IN_MEMORY, JOB_MAX_AGE_MS);
 const cache = new Map(); // url_hash -> { url, domain, reports: { fr: {}, en: {} }, createdAt, lastAccessedAt }
 
 // Trust proxy (nécessaire pour Render et express-rate-limit)
@@ -38,25 +55,86 @@ app.use(helmet({
 }));
 
 app.use(cors());
+
+// Middleware de métriques (avant les autres routes pour tout tracker)
+app.use(metricsMiddleware);
+
+// IMPORTANT: Le webhook Stripe doit recevoir le raw body
+// On utilise express.raw() UNIQUEMENT pour cette route
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+// Toutes les autres routes utilisent express.json()
 app.use(express.json({ limit: '10mb' }));
 
-// Rate limiting pour /scan (10 requêtes par minute par IP)
+// Rate limiting pour /scan
 const scanLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_SCAN_MAX,
   message: { error: 'Trop de requêtes. Veuillez réessayer dans 1 minute.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Rate limiting pour /jobs (60 requêtes par minute par IP)
+// Rate limiting pour /jobs et autres endpoints
 const jobsLimiter = rateLimit({
-  windowMs: 60 * 1000, 
-  max: 60,
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_JOBS_MAX,
   message: { error: 'Trop de requêtes. Veuillez réessayer dans 1 minute.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// -----------------------------
+// Fonctions utilitaires de validation
+// -----------------------------
+
+/**
+ * Valide et sanitize une URL
+ * @param {string} url - URL à valider
+ * @returns {string} - URL validée
+ * @throws {Error} - Si URL invalide ou dangereuse
+ */
+function sanitizeAndValidateUrl(url) {
+  if (!url || typeof url !== 'string') {
+    throw new Error('URL is required');
+  }
+
+  const trimmedUrl = url.trim();
+
+  if (trimmedUrl.length === 0) {
+    throw new Error('URL cannot be empty');
+  }
+
+  // Validation basique avec validator
+  if (!validator.isURL(trimmedUrl, { require_protocol: true, protocols: ['http', 'https'] })) {
+    throw new Error('Invalid URL format');
+  }
+
+  // Parse l'URL pour validation supplémentaire
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(trimmedUrl);
+  } catch (err) {
+    throw new Error('Invalid URL format');
+  }
+
+  // Bloquer les schemes dangereux (double vérification)
+  const dangerousSchemes = ['file:', 'javascript:', 'data:', 'ftp:', 'ftps:'];
+  if (dangerousSchemes.includes(parsedUrl.protocol)) {
+    throw new Error('URL scheme not allowed');
+  }
+
+  // Bloquer les URLs localhost/internal en production
+  if (process.env.NODE_ENV === 'production') {
+    const hostname = parsedUrl.hostname.toLowerCase();
+    const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
+    if (blockedHosts.includes(hostname) || hostname.startsWith('192.168.') || hostname.startsWith('10.')) {
+      throw new Error('Internal URLs not allowed');
+    }
+  }
+
+  return trimmedUrl;
+}
 
 // -----------------------------
 // Fonctions utilitaires du cache
@@ -96,56 +174,93 @@ function enforceCacheLimit() {
 // Routes API
 // -----------------------------
 
+// Routes d'authentification
+app.use('/api/auth', authRoutes);
+
+// Routes de paiement
+app.use('/api/payments', paymentRoutes);
+
 /**
  * POST /scan
  * Lance une analyse de CGU
- * Body: { url: string, content: string, user_language_preference: string }
- * Response: { job_id: string }
+ * Body: { url: string, content: string, user_language_preference: string, deviceId: string }
+ * Headers: Authorization: Bearer <jwt>
+ * Response: { job_id: string, remainingScans: number }
  */
-app.post('/scan', scanLimiter, async (req, res) => {
+app.post('/scan', scanLimiter, verifyJWT, async (req, res) => {
   try {
-    const { url, content, user_language_preference } = req.body;
+    console.log('\n==================== SCAN REQUEST ====================');
+    const { url, content, user_language_preference, deviceId } = req.body;
+
+    // Vérifier les crédits de l'utilisateur
+    if (!deviceId) {
+      return res.status(400).json({ error: 'Le champ "deviceId" est requis' });
+    }
+
+    console.log(`🔑 [SCAN] DeviceId reçu: ${deviceId}`);
+
+    let user = await userService.getUser(deviceId);
+
+    // Si l'utilisateur n'existe pas, le créer automatiquement
+    if (!user) {
+      console.log(`✨ [SCAN] Utilisateur inexistant, création automatique pour: ${deviceId}`);
+      user = await userService.createUser(deviceId);
+    }
+
+    if (user.remainingScans <= 0) {
+      return res.status(403).json({
+        error: 'QUOTA_EXCEEDED',
+        message: 'Quota de scans épuisé',
+        remainingScans: 0
+      });
+    }
 
     // Validation du contenu
     if (!content || typeof content !== 'string') {
       return res.status(400).json({ error: 'Le champ "content" est requis et doit être une chaîne de caractères' });
     }
 
-    if (content.length < 300) {
-      return res.status(400).json({ error: 'Le contenu est trop court pour être analysé (minimum 300 caractères)' });
+    if (content.length < MIN_CONTENT_LENGTH) {
+      return res.status(400).json({ error: `Le contenu est trop court pour être analysé (minimum ${MIN_CONTENT_LENGTH} caractères)` });
     }
 
-    if (content.length > 500000) {
-      return res.status(413).json({ error: 'Contenu trop long, plus de 500 000 caractères' });
+    if (content.length > MAX_CONTENT_LENGTH) {
+      return res.status(413).json({ error: `Contenu trop long (maximum ${MAX_CONTENT_LENGTH} caractères)` });
     }
 
-    // Validation de l'URL si fournie
-    if (url && typeof url === 'string') {
-      const sanitizedUrl = url.trim();
-      if (sanitizedUrl.length > 0 && !validator.isURL(sanitizedUrl, { require_protocol: true, protocols: ['http', 'https'] })) {
-        return res.status(400).json({ error: 'URL invalide' });
+    // Validation et sanitization de l'URL si fournie
+    let validatedUrl = url || 'unknown';
+    if (url && typeof url === 'string' && url.trim().length > 0) {
+      try {
+        validatedUrl = sanitizeAndValidateUrl(url);
+      } catch (error) {
+        return res.status(400).json({ error: `Invalid URL: ${error.message}` });
       }
     }
 
     // Valider et définir la langue par défaut
     const userLanguage = ['fr', 'en'].includes(user_language_preference) ? user_language_preference : 'en';
 
-    // Créer le job
+    // Créer le job SANS décrémenter (décrémentation dans job-processor)
     const jobId = crypto.randomUUID();
-    jobs.set(jobId, {
+    jobManager.addJob(jobId, {
       status: 'queued',
-      url: url || 'unknown',
+      url: validatedUrl,
       content,
       userLanguage,
+      deviceId, // Stocker deviceId pour décrémenter dans le processor
       result: null,
-      error: null,
-      createdAt: Date.now()
+      error: null
     });
 
     // Lancer le traitement en arrière-plan
-    processJob(jobId, jobs, cache, PRIMARY_MODEL, FALLBACK_MODELS, process.env.GEMINI_API_KEY, enforceCacheLimit);
+    // La décrémentation se fera SEULEMENT si cache miss ou nouvelle analyse IA
+    processJob(jobId, jobManager, cache, PRIMARY_MODEL, FALLBACK_MODELS, process.env.GEMINI_API_KEY, enforceCacheLimit, userService);
 
-    res.json({ job_id: jobId });
+    res.json({
+      job_id: jobId,
+      remainingScans: user.remainingScans // Retourner les crédits actuels
+    });
 
   } catch (error) {
     console.error('Erreur /scan:', error.message, error.stack);
@@ -158,7 +273,7 @@ app.post('/scan', scanLimiter, async (req, res) => {
  * Récupère l'état d'un job
  * Response: { status: 'queued'|'running'|'done'|'error', result?: object, error?: string }
  */
-app.get('/jobs/:id', jobsLimiter, (req, res) => {
+app.get('/jobs/:id', jobsLimiter, async (req, res) => {
   const { id } = req.params;
 
   // Validation du format UUID
@@ -166,7 +281,7 @@ app.get('/jobs/:id', jobsLimiter, (req, res) => {
     return res.status(400).json({ error: 'ID de job invalide' });
   }
 
-  const job = jobs.get(id);
+  const job = jobManager.getJob(id);
 
   if (!job) {
     return res.status(404).json({ error: 'Job introuvable' });
@@ -179,10 +294,20 @@ app.get('/jobs/:id', jobsLimiter, (req, res) => {
 
   if (job.status === 'done' && job.result) {
     response.result = job.result;
+
+    // Ajouter les crédits restants depuis le cache du job (pas de DB call)
+    if (job.remainingScans !== undefined) {
+      response.remainingScans = job.remainingScans;
+    }
   }
 
   if (job.status === 'error' && job.error) {
     response.error = job.error;
+
+    // Ajouter les crédits restants depuis le cache du job (pas de DB call)
+    if (job.remainingScans !== undefined) {
+      response.remainingScans = job.remainingScans;
+    }
   }
 
   res.json(response);
@@ -193,7 +318,7 @@ app.get('/jobs/:id', jobsLimiter, (req, res) => {
  * Recherche dans le cache par hash d'URL
  * Query: ?url_hash=xxx&lang=fr|en
  */
-app.get('/report', (req, res) => {
+app.get('/report', jobsLimiter, (req, res) => {
   const { url_hash, lang } = req.query;
 
   if (!url_hash) {
@@ -229,28 +354,301 @@ app.get('/report', (req, res) => {
  * Healthcheck basique
  */
 app.get('/health', (req, res) => {
+  const jobStats = jobManager.getStats();
+  const metrics = metricsStore.getMetrics();
+
   res.json({
     status: 'ok',
-    jobs_count: jobs.size,
+    jobs: jobStats,
     cache_count: cache.size,
+    metrics: {
+      requests: metrics.requests.total,
+      scans: metrics.scans.total,
+      uptime: metrics.uptime
+    },
     timestamp: new Date().toISOString()
   });
 });
 
-// -----------------------------
-// Nettoyage périodique des vieux jobs (MVP)
-// -----------------------------
-setInterval(() => {
-  const now = Date.now();
-  const maxAge = 60 * 60 * 1000; // 1 heure
+/**
+ * GET /metrics
+ * Endpoint protégé pour visualiser les métriques complètes
+ * Header requis: X-Metrics-Key: <METRICS_API_KEY>
+ */
+app.get('/metrics', (req, res) => {
+  const apiKey = req.headers['x-metrics-key'];
 
-  for (const [jobId, job] of jobs.entries()) {
-    if (now - job.createdAt > maxAge) {
-      jobs.delete(jobId);
-      console.log(`🗑️  Job ${jobId} supprimé (trop ancien)`);
-    }
+  if (!process.env.METRICS_API_KEY || apiKey !== process.env.METRICS_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid or missing metrics key' });
   }
-}, 10 * 60 * 1000); // Toutes les 10 minutes
+
+  const metrics = metricsStore.getMetrics();
+  res.json(metrics);
+});
+
+/**
+ * GET /metrics/export
+ * Télécharge un snapshot JSON des métriques
+ * Header requis: X-Metrics-Key: <METRICS_API_KEY>
+ */
+app.get('/metrics/export', (req, res) => {
+  const apiKey = req.headers['x-metrics-key'];
+
+  if (!process.env.METRICS_API_KEY || apiKey !== process.env.METRICS_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid or missing metrics key' });
+  }
+
+  const metrics = metricsStore.getMetrics();
+  const filename = `metrics-snapshot-${new Date().toISOString().replace(/:/g, '-')}.json`;
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.json(metrics);
+});
+
+/**
+ * POST /metrics/reset
+ * Réinitialise toutes les métriques
+ * Header requis: X-Metrics-Key: <METRICS_API_KEY>
+ */
+app.post('/metrics/reset', async (req, res) => {
+  const apiKey = req.headers['x-metrics-key'];
+
+  if (!process.env.METRICS_API_KEY || apiKey !== process.env.METRICS_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid or missing metrics key' });
+  }
+
+  await metricsStore.resetMetrics();
+  res.json({ success: true, message: 'Métriques réinitialisées avec succès' });
+});
+
+/**
+ * GET /payment-success
+ * Page de confirmation de paiement
+ */
+app.get('/payment-success', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Paiement réussi - Clear Terms</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        .container {
+          background: white;
+          border-radius: 20px;
+          padding: 40px;
+          max-width: 500px;
+          width: 100%;
+          text-align: center;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .success-icon {
+          width: 80px;
+          height: 80px;
+          margin: 0 auto 20px;
+          background: #10b981;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: scaleIn 0.5s ease-out;
+        }
+        .checkmark {
+          width: 40px;
+          height: 40px;
+          border: 4px solid white;
+          border-left: none;
+          border-top: none;
+          transform: rotate(45deg);
+          margin-top: -10px;
+        }
+        h1 {
+          color: #1f2937;
+          font-size: 28px;
+          margin-bottom: 10px;
+        }
+        p {
+          color: #6b7280;
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 30px;
+        }
+        .message {
+          background: #f3f4f6;
+          padding: 15px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+        }
+        .message p {
+          margin: 0;
+          color: #374151;
+          font-weight: 500;
+        }
+        @keyframes scaleIn {
+          0% {
+            transform: scale(0);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="success-icon">
+          <div class="checkmark"></div>
+        </div>
+        <h1>Paiement réussi !</h1>
+        <p>Merci pour votre achat. Vos crédits ont été ajoutés à votre compte.</p>
+        <div class="message">
+          <p>Vous pouvez maintenant fermer cette page et retourner à l'extension.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+/**
+ * GET /payment-cancel
+ * Page d'annulation de paiement
+ */
+app.get('/payment-cancel', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Paiement annulé - Clear Terms</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+          background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        .container {
+          background: white;
+          border-radius: 20px;
+          padding: 40px;
+          max-width: 500px;
+          width: 100%;
+          text-align: center;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .error-icon {
+          width: 80px;
+          height: 80px;
+          margin: 0 auto 20px;
+          background: #ef4444;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: scaleIn 0.5s ease-out;
+        }
+        .cross {
+          width: 40px;
+          height: 40px;
+          position: relative;
+        }
+        .cross::before,
+        .cross::after {
+          content: '';
+          position: absolute;
+          width: 4px;
+          height: 40px;
+          background: white;
+          left: 50%;
+          top: 50%;
+        }
+        .cross::before {
+          transform: translate(-50%, -50%) rotate(45deg);
+        }
+        .cross::after {
+          transform: translate(-50%, -50%) rotate(-45deg);
+        }
+        h1 {
+          color: #1f2937;
+          font-size: 28px;
+          margin-bottom: 10px;
+        }
+        p {
+          color: #6b7280;
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 30px;
+        }
+        .message {
+          background: #fef2f2;
+          padding: 15px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+        }
+        .message p {
+          margin: 0;
+          color: #991b1b;
+          font-weight: 500;
+        }
+        @keyframes scaleIn {
+          0% {
+            transform: scale(0);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="error-icon">
+          <div class="cross"></div>
+        </div>
+        <h1>Paiement annulé</h1>
+        <p>Votre paiement a été annulé. Aucun montant n'a été débité.</p>
+        <div class="message">
+          <p>Vous pouvez fermer cette page et réessayer plus tard.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// Le nettoyage des jobs est maintenant géré automatiquement par JobManager
 
 // -----------------------------
 // Nettoyage périodique du cache (24h d'expiration)

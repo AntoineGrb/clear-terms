@@ -66,6 +66,27 @@ const ERROR_TYPES = {
       fr: 'Une erreur inattendue est survenue.',
       en: 'An unexpected error occurred.'
     }
+  },
+  TOKEN_EXPIRED: {
+    code: 'ERR_TOKEN_EXPIRED',
+    message: {
+      fr: 'Votre session a expiré. Reconnexion en cours...',
+      en: 'Your session has expired. Reconnecting...'
+    }
+  },
+  INVALID_TOKEN: {
+    code: 'ERR_INVALID_TOKEN',
+    message: {
+      fr: 'Erreur d\'authentification. Reconnexion en cours...',
+      en: 'Authentication error. Reconnecting...'
+    }
+  },
+  DEVICE_MISMATCH: {
+    code: 'ERR_DEVICE_MISMATCH',
+    message: {
+      fr: 'Conflit d\'authentification. Veuillez recharger l\'extension.',
+      en: 'Authentication conflict. Please reload the extension.'
+    }
   }
 };
 
@@ -107,6 +128,19 @@ function classifyError(error) {
       error.message.includes('trop de temps') ||
       error.message.includes('taking too long')) {
     return ERROR_TYPES.TIMEOUT;
+  }
+
+  // Erreurs d'authentification
+  if (error.message === 'TOKEN_EXPIRED' || error.error === 'TOKEN_EXPIRED') {
+    return ERROR_TYPES.TOKEN_EXPIRED;
+  }
+
+  if (error.message === 'INVALID_TOKEN' || error.error === 'INVALID_TOKEN') {
+    return ERROR_TYPES.INVALID_TOKEN;
+  }
+
+  if (error.message === 'DEVICE_MISMATCH' || error.error === 'DEVICE_MISMATCH') {
+    return ERROR_TYPES.DEVICE_MISMATCH;
   }
 
   // Page protégée

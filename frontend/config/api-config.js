@@ -2,13 +2,27 @@
 // API CONFIGURATION - Gestion centralisée des URLs backend
 // ========================================
 
-// CONFIG : Forcer l'utilisation du backend (prod ou local)
-// Les deux false = auto-détection
-const FORCE_PROD = false; // true = forcer PROD
-const FORCE_LOCAL = false; // true = forcer LOCAL (override tout)
+// ⚙️ CONFIGURATION - Modifiez ces valeurs selon vos besoins
+const CONFIG = {
+  // URLs backend
+  LOCAL_URL: 'http://localhost:3000',
+  STAGING_URL: 'https://clear-terms-staging.onrender.com', // À modifier si vous avez un staging
+  PROD_URL: 'https://clear-terms.onrender.com',
 
-const POLL_INTERVAL = 2000;
-const MAX_POLL_ATTEMPTS = 60;
+  // Mode de fonctionnement (une seule des options à true)
+  FORCE_LOCAL: false, 
+  FORCE_STAGING: true,
+  FORCE_PROD: false,  
+  // Si les 3 sont false = auto-détection (dev/prod)
+
+  // Paramètres polling
+  POLL_INTERVAL: 2000,        // 2 secondes
+  MAX_POLL_ATTEMPTS: 60       // 2 minutes max
+};
+
+// Rétrocompatibilité
+const POLL_INTERVAL = CONFIG.POLL_INTERVAL;
+const MAX_POLL_ATTEMPTS = CONFIG.MAX_POLL_ATTEMPTS;
 
 // Cache de l'URL backend (évalué une seule fois)
 let _backendUrlCache = null;
@@ -28,13 +42,17 @@ function getBackendURL() {
 
   // Déterminer l'URL
   let url;
+  let mode;
 
-  if (FORCE_LOCAL) {
-    console.log('🔧 [CONFIG] Mode forcé : Backend LOCAL');
-    url = 'http://localhost:3000';
-  } else if (FORCE_PROD) {
-    console.log('🚀 [CONFIG] Mode forcé : Backend PRODUCTION');
-    url = 'https://clear-terms.onrender.com';
+  if (CONFIG.FORCE_LOCAL) {
+    mode = 'LOCAL (forcé)';
+    url = CONFIG.LOCAL_URL;
+  } else if (CONFIG.FORCE_STAGING) {
+    mode = 'STAGING (forcé)';
+    url = CONFIG.STAGING_URL;
+  } else if (CONFIG.FORCE_PROD) {
+    mode = 'PRODUCTION (forcé)';
+    url = CONFIG.PROD_URL;
   } else {
     // Auto-détection
     try {
@@ -48,16 +66,23 @@ function getBackendURL() {
         manifestKeys: Object.keys(manifest)
       });
 
-      url = isDevelopment ? 'http://localhost:3000' : 'https://clear-terms.onrender.com';
+      if (isDevelopment) {
+        mode = 'LOCAL (auto-détecté)';
+        url = CONFIG.LOCAL_URL;
+      } else {
+        mode = 'PRODUCTION (auto-détecté)';
+        url = CONFIG.PROD_URL;
+      }
     } catch (error) {
       console.log('⚠️ [CONFIG] Erreur détection, fallback LOCAL:', error.message);
-      url = 'http://localhost:3000';
+      mode = 'LOCAL (fallback)';
+      url = CONFIG.LOCAL_URL;
     }
   }
 
   // Mettre en cache et logger une seule fois
   _backendUrlCache = url;
-  console.log(`✅ [CONFIG] Backend sélectionné: ${url} (mis en cache)`);
+  console.log(`✅ [CONFIG] Backend sélectionné: ${url} [${mode}]`);
 
   return _backendUrlCache;
 }

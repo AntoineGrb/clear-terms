@@ -4,9 +4,12 @@
 
 /**
  * Crée et affiche le toast de notification
- * Utilise Shadow DOM pour l'isolation CSS
+ * @param {string} type - 'found' (rapport trouvé) ou 'detected' (CGU détectées)
+ * @param {string} url - URL de la page
+ * @param {string} hash - Hash du contenu
+ * @param {Object|string} data - Rapport (si found) ou contenu (si detected)
  */
-function createToast() {
+function createToast(type, url, data) {
   // Vérifier si le toast existe déjà
   if (document.getElementById('clear-terms-toast-container')) {
     console.log('[Clear Terms] Toast déjà affiché');
@@ -17,26 +20,46 @@ function createToast() {
   chrome.storage.local.get(['userLanguage', 'toastPosition', 'toastDuration'], (result) => {
     const lang = result.userLanguage || 'fr';
     const position = result.toastPosition || 'bottom-right';
-    const duration = result.toastDuration !== undefined ? result.toastDuration : 5000;
+    const duration = result.toastDuration !== undefined ? result.toastDuration : 30000;
 
     const translations = {
       fr: {
         appName: 'Clear Terms',
-        title: 'Analyse des CGU disponible',
-        subtitle: 'Cliquer pour voir l\'analyse'
+        foundMessage: 'Analyse trouvée pour ce site',
+        detectedMessage: 'CGU détectées sur cette page',
+        btnView: 'Voir',
+        btnIgnore: 'Ignorer',
+        btnAnalyze: 'Analyser',
+        btnCancel: 'Annuler'
       },
       en: {
         appName: 'Clear Terms',
-        title: 'Terms Analysis Available',
-        subtitle: 'Click to view analysis'
+        foundMessage: 'Analysis found for this site',
+        detectedMessage: 'Terms detected on this page',
+        btnView: 'View',
+        btnIgnore: 'Ignore',
+        btnAnalyze: 'Analyze',
+        btnCancel: 'Cancel'
       }
     };
 
     const t = translations[lang];
+    const message = type === 'found' ? t.foundMessage : t.detectedMessage;
+    const btnPrimary = type === 'found' ? t.btnView : t.btnAnalyze;
+    const btnSecondary = type === 'found' ? t.btnIgnore : t.btnCancel;
 
     // Créer le container avec la position choisie
     const toastContainer = document.createElement('div');
     toastContainer.id = 'clear-terms-toast-container';
+    toastContainer.dataset.type = type;
+    toastContainer.dataset.url = url;
+
+    // Stocker les données dans le dataset
+    if (type === 'found') {
+      toastContainer.dataset.report = JSON.stringify(data);
+    } else {
+      toastContainer.dataset.content = data;
+    }
 
     // Définir la position selon la préférence
     const positions = {
@@ -52,6 +75,9 @@ function createToast() {
       z-index: 2147483647;
       animation: slideIn 0.3s ease-out;
     `;
+
+    // Récupérer l'URL de l'icône AVANT de créer le Shadow DOM
+    const iconUrl = chrome.runtime.getURL('icon/icon48.png');
 
     // Créer Shadow DOM
     const shadow = toastContainer.attachShadow({ mode: 'open' });
@@ -76,14 +102,7 @@ function createToast() {
           box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
           padding: 16px;
           max-width: 340px;
-          cursor: pointer;
-          transition: all 0.2s ease;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        .toast:hover {
-          box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
-          transform: translateY(-2px);
         }
 
         .toast-header {
@@ -97,14 +116,12 @@ function createToast() {
           flex-shrink: 0;
           width: 32px;
           height: 32px;
-          background: linear-gradient(135deg, #6366f1 0%, #a78bfa 100%);
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          font-size: 14px;
-          color: white;
+        }
+
+        .logo img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
 
         .app-name {
@@ -115,87 +132,88 @@ function createToast() {
           margin: 0;
         }
 
-        .toast-content {
-          display: flex;
-          align-items: start;
-          gap: 12px;
+        .toast-body {
+          margin-bottom: 12px;
         }
 
-        .text-content {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .title {
+        .message {
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 500;
           color: #111827;
-          margin: 0 0 4px 0;
-        }
-
-        .subtitle {
-          font-size: 12px;
-          color: #6b7280;
           margin: 0;
+          line-height: 1.4;
         }
 
-        .close-btn {
-          flex-shrink: 0;
-          width: 20px;
-          height: 20px;
-          border: none;
-          background: none;
-          color: #9ca3af;
-          cursor: pointer;
-          padding: 0;
+        .toast-actions {
           display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: color 0.2s;
+          gap: 8px;
         }
 
-        .close-btn:hover {
-          color: #4b5563;
+        .toast-btn {
+          flex: 1;
+          padding: 8px 16px;
+          border: none;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-family: inherit;
         }
 
-        .close-icon {
-          width: 20px;
-          height: 20px;
+        .toast-btn-primary {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+        }
+
+        .toast-btn-primary:hover {
+          background: linear-gradient(135deg, #5568d3 0%, #63408a 100%);
+        }
+
+        .toast-btn-secondary {
+          background: #f3f4f6;
+          color: #6b7280;
+        }
+
+        .toast-btn-secondary:hover {
+          background: #e5e7eb;
         }
       </style>
       <div class="toast">
         <div class="toast-header">
-          <div class="logo">CT</div>
-          <p class="app-name">${t.appName}</p>
-          <button class="close-btn" id="close-toast" aria-label="Close">
-            <svg class="close-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        <div class="toast-content">
-          <div class="text-content">
-            <p class="title">${t.title}</p>
-            <p class="subtitle">${t.subtitle}</p>
+          <div class="logo">
+            <img src="${iconUrl}" alt="Clear Terms">
           </div>
+          <p class="app-name">${t.appName}</p>
+        </div>
+
+        <div class="toast-body">
+          <p class="message">${message}</p>
+        </div>
+
+        <div class="toast-actions">
+          <button class="toast-btn toast-btn-primary" data-action="primary">
+            ${btnPrimary}
+          </button>
+          <button class="toast-btn toast-btn-secondary" data-action="secondary">
+            ${btnSecondary}
+          </button>
         </div>
       </div>
     `;
 
     document.body.appendChild(toastContainer);
 
-    // Event listener: Ouvrir la popup au clic
-    const toastElement = shadow.querySelector('.toast');
-    toastElement.addEventListener('click', (e) => {
-      if (!e.target.closest('#close-toast')) {
-        chrome.runtime.sendMessage({ type: 'OPEN_POPUP' });
-        toastContainer.remove();
-      }
+    // Event listeners pour les boutons
+    const primaryBtn = shadow.querySelector('[data-action="primary"]');
+    const secondaryBtn = shadow.querySelector('[data-action="secondary"]');
+
+    primaryBtn.addEventListener('click', () => {
+      handleToastPrimaryAction(type, url, data);
+      toastContainer.remove();
     });
 
-    // Event listener: Fermer le toast
-    shadow.querySelector('#close-toast').addEventListener('click', (e) => {
-      e.stopPropagation();
+    secondaryBtn.addEventListener('click', () => {
       toastContainer.remove();
     });
 
@@ -208,4 +226,24 @@ function createToast() {
       }, duration);
     }
   });
+}
+
+/**
+ * Gère l'action principale du toast (Voir ou Analyser)
+ */
+function handleToastPrimaryAction(type, url, data) {
+  if (type === 'found') {
+    // Rapport trouvé : afficher le rapport dans le popup
+    chrome.runtime.sendMessage({
+      type: 'DISPLAY_REPORT',
+      report: data
+    });
+  } else {
+    // CGU détectées : lancer une analyse
+    chrome.runtime.sendMessage({
+      type: 'PERFORM_ANALYSIS',
+      url: url,
+      content: data
+    });
+  }
 }

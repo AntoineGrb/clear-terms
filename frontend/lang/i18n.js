@@ -74,8 +74,8 @@ const translations = {
 
     // Token refresh
     refreshToken: "Support",
-    refreshTokenButton: "Rafraîchir l'authentification",
-    refreshTokenHelp: "En cas d'erreur d'authentification persistante",
+    refreshTokenButton: "Rafraîchir",
+    refreshTokenHelp: "En cas d'erreur concernant les scans",
     refreshTokenSuccess: "✅ Authentification rafraîchie !",
     refreshTokenError: "❌ Erreur lors du rafraîchissement",
 
@@ -344,8 +344,8 @@ const translations = {
 
     // Token refresh
     refreshToken: "Support",
-    refreshTokenButton: "Refresh authentication",
-    refreshTokenHelp: "In case of persistent authentication error",
+    refreshTokenButton: "Refresh",
+    refreshTokenHelp: "In case of an error regarding scans",
     refreshTokenSuccess: "✅ Authentication refreshed!",
     refreshTokenError: "❌ Error refreshing authentication",
 

@@ -1,4 +1,5 @@
 const dbService = require('./db-service');
+const metricsStore = require('../utils/metrics-store');
 
 const INITIAL_CREDITS = 20;
 
@@ -31,6 +32,7 @@ class UserService {
 
     try {
       await dbService.acquireLock();
+      metricsStore.incrementDbQuery('read');
       const data = await this._readUsers();
       return data.users[deviceId] || null;
     } finally {
@@ -81,7 +83,11 @@ class UserService {
       };
 
       data.users[deviceId] = newUser;
+      metricsStore.incrementDbQuery('write');
       await this._writeUsers(data);
+
+      metricsStore.incrementUserCreated();
+      console.log(`✨ [METRICS] Nouvel utilisateur créé: ${deviceId}`);
 
       return newUser;
     } finally {
@@ -116,6 +122,7 @@ class UserService {
       user.lastUsedAt = new Date().toISOString();
 
       data.users[deviceId] = user;
+      metricsStore.incrementDbQuery('write');
       await this._writeUsers(data);
 
       return user.remainingScans;
@@ -151,6 +158,7 @@ class UserService {
       user.plan = 'premium';
 
       data.users[deviceId] = user;
+      metricsStore.incrementDbQuery('write');
       await this._writeUsers(data);
 
       return user.remainingScans;
@@ -165,6 +173,7 @@ class UserService {
   async getStats() {
     try {
       await dbService.acquireLock();
+      metricsStore.incrementDbQuery('read');
       const data = await this._readUsers();
       const users = Object.values(data.users);
 
@@ -197,6 +206,7 @@ class UserService {
 
       user.stripeCustomerId = stripeCustomerId;
       data.users[deviceId] = user;
+      metricsStore.incrementDbQuery('write');
       await this._writeUsers(data);
 
       return user;
@@ -261,6 +271,7 @@ class UserService {
       user.lastUsedAt = new Date().toISOString();
 
       data.users[deviceId] = user;
+      metricsStore.incrementDbQuery('write');
       await this._writeUsers(data);
 
       return {
@@ -296,6 +307,7 @@ class UserService {
 
     try {
       await dbService.acquireLock();
+      metricsStore.incrementDbQuery('read');
       const data = await this._readUsers();
 
       const user = data.users[deviceId];

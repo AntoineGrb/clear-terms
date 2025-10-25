@@ -1,6 +1,7 @@
 const { cleanText, calculateUrlHash, calculateContentHash } = require('../utils/text-processing');
 const { loadPromptTemplate, callGemini } = require('../utils/gemini');
 const { CACHE_EXPIRATION_MS } = require('../config/constants');
+const metricsStore = require('../utils/metrics-store');
 
 /**
  * Traite un job d'analyse
@@ -56,6 +57,7 @@ async function processJob(jobId, jobManager, cache, primaryModel, fallbackModels
             try {
               newCredits = await userService.decrementCredits(deviceId);
               console.log(`💳 [CACHE HIT] Crédits décrémentés pour ${deviceId}: ${newCredits} restants`);
+              metricsStore.incrementCacheHit();
             } catch (error) {
               console.error(`❌ [CACHE HIT] Erreur décrémentation:`, error.message);
             }
@@ -106,6 +108,7 @@ YOU MUST WRITE ALL YOUR ANALYSIS COMMENTS ("comment" FIELDS IN THE JSON) IN ${la
       try {
         newCredits = await userService.decrementCredits(deviceId);
         console.log(`💳 [AI CALL] Crédits décrémentés pour ${deviceId}: ${newCredits} restants`);
+        metricsStore.incrementScanConsumed();
         // Stocker dans le job pour pouvoir rembourser en cas d'erreur
         jobManager.updateJob(jobId, { creditDebited: true, remainingScans: newCredits });
       } catch (error) {

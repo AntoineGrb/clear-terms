@@ -12,6 +12,8 @@ const paymentRoutes = require('./routes/payment-routes');
 const userService = require('./services/user-service');
 const { verifyJWT } = require('./middleware/auth-middleware');
 const JobManager = require('./utils/job-manager');
+const metricsStore = require('./utils/metrics-store');
+const metricsMiddleware = require('./middleware/metrics-middleware');
 const {
   MIN_CONTENT_LENGTH,
   MAX_CONTENT_LENGTH,
@@ -53,6 +55,9 @@ app.use(helmet({
 }));
 
 app.use(cors());
+
+// Middleware de métriques (avant les autres routes pour tout tracker)
+app.use(metricsMiddleware);
 
 // IMPORTANT: Le webhook Stripe doit recevoir le raw body
 // On utilise express.raw() UNIQUEMENT pour cette route
@@ -350,12 +355,71 @@ app.get('/report', jobsLimiter, (req, res) => {
  */
 app.get('/health', (req, res) => {
   const jobStats = jobManager.getStats();
+  const metrics = metricsStore.getMetrics();
+
   res.json({
     status: 'ok',
     jobs: jobStats,
     cache_count: cache.size,
+    metrics: {
+      requests: metrics.requests.total,
+      scans: metrics.scans.total,
+      uptime: metrics.uptime
+    },
     timestamp: new Date().toISOString()
   });
+});
+
+/**
+ * GET /metrics
+ * Endpoint protégé pour visualiser les métriques complètes
+ * Header requis: X-Metrics-Key: <METRICS_API_KEY>
+ */
+app.get('/metrics', (req, res) => {
+  const apiKey = req.headers['x-metrics-key'];
+
+  if (!process.env.METRICS_API_KEY || apiKey !== process.env.METRICS_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid or missing metrics key' });
+  }
+
+  const metrics = metricsStore.getMetrics();
+  res.json(metrics);
+});
+
+/**
+ * GET /metrics/export
+ * Télécharge un snapshot JSON des métriques
+ * Header requis: X-Metrics-Key: <METRICS_API_KEY>
+ */
+app.get('/metrics/export', (req, res) => {
+  const apiKey = req.headers['x-metrics-key'];
+
+  if (!process.env.METRICS_API_KEY || apiKey !== process.env.METRICS_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid or missing metrics key' });
+  }
+
+  const metrics = metricsStore.getMetrics();
+  const filename = `metrics-snapshot-${new Date().toISOString().replace(/:/g, '-')}.json`;
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.json(metrics);
+});
+
+/**
+ * POST /metrics/reset
+ * Réinitialise toutes les métriques
+ * Header requis: X-Metrics-Key: <METRICS_API_KEY>
+ */
+app.post('/metrics/reset', async (req, res) => {
+  const apiKey = req.headers['x-metrics-key'];
+
+  if (!process.env.METRICS_API_KEY || apiKey !== process.env.METRICS_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid or missing metrics key' });
+  }
+
+  await metricsStore.resetMetrics();
+  res.json({ success: true, message: 'Métriques réinitialisées avec succès' });
 });
 
 /**

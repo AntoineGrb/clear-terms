@@ -4,8 +4,12 @@
 
 importScripts('../config/api-config.js');
 importScripts('../utils/hash.js');
+importScripts('../utils/fetch-with-timeout.js');
 
 console.log('🚀 Clear Terms Service Worker démarré');
+
+// Map pour suivre les jobs en cours (les constantes POLL_INTERVAL et MAX_POLL_ATTEMPTS viennent de api-config.js)
+const activeJobs = new Map();
 
 /**
  * Détecte la langue du navigateur
@@ -14,6 +18,169 @@ function detectBrowserLanguage() {
   const browserLang = navigator.language || 'en';
   const langCode = browserLang.split('-')[0].toLowerCase();
   return ['fr', 'en'].includes(langCode) ? langCode : 'en';
+}
+
+/**
+ * Poll un job en arrière-plan jusqu'à ce qu'il soit terminé
+ * CRITIQUE : Persiste même si la popup est fermée
+ */
+async function pollJobInBackground(jobId, url) {
+  console.log(`🔄 [BACKGROUND] Démarrage du polling pour job ${jobId}`);
+
+  for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
+    try {
+      const response = await fetchWithTimeout(`${getBackendURL()}/jobs/${jobId}`, {}, 30000);
+
+      if (!response.ok) {
+        console.error(`[BACKGROUND] Erreur HTTP ${response.status} lors du polling`);
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+        continue;
+      }
+
+      const job = await response.json();
+      console.log(`📊 [BACKGROUND] Job ${jobId} status: ${job.status} (tentative ${i + 1}/${MAX_POLL_ATTEMPTS})`);
+
+      if (job.status === 'done') {
+        console.log(`✅ [BACKGROUND] Job ${jobId} terminé avec succès`);
+
+        // Mettre à jour les crédits
+        if (job.remainingScans !== undefined) {
+          await chrome.storage.sync.set({ remainingScans: job.remainingScans });
+          console.log(`💳 [BACKGROUND] Crédits mis à jour: ${job.remainingScans}`);
+        }
+
+        // Créer une copie du rapport
+        const report = JSON.parse(JSON.stringify(job.result));
+
+        // Mettre à jour le timestamp
+        const now = new Date().toISOString();
+        if (report.metadata) {
+          report.metadata.analyzed_at = now;
+        }
+
+        // Sauvegarder dans lastReport
+        await chrome.storage.local.set({ lastReport: report });
+        console.log(`💾 [BACKGROUND] Rapport sauvegardé dans lastReport`);
+
+        // Ajouter à l'historique
+        await addToReportsHistory(report);
+        console.log(`📚 [BACKGROUND] Rapport ajouté à l'historique`);
+
+        // Retirer du tracking
+        activeJobs.delete(jobId);
+
+        // Notifier la popup si elle est ouverte
+        try {
+          await chrome.runtime.sendMessage({
+            type: 'JOB_COMPLETE',
+            jobId,
+            report,
+            remainingScans: job.remainingScans
+          });
+        } catch (e) {
+          // Popup fermée, normal
+        }
+
+        return report;
+      }
+
+      if (job.status === 'error') {
+        console.error(`❌ [BACKGROUND] Job ${jobId} en erreur:`, job.error);
+
+        // Mettre à jour les crédits (refund)
+        if (job.remainingScans !== undefined) {
+          await chrome.storage.sync.set({ remainingScans: job.remainingScans });
+          console.log(`💳 [BACKGROUND] Crédits mis à jour après erreur: ${job.remainingScans}`);
+        }
+
+        // Retirer du tracking
+        activeJobs.delete(jobId);
+
+        // Notifier la popup si elle est ouverte
+        try {
+          await chrome.runtime.sendMessage({
+            type: 'JOB_ERROR',
+            jobId,
+            error: job.error,
+            remainingScans: job.remainingScans
+          });
+        } catch (e) {
+          // Popup fermée, normal
+        }
+
+        throw new Error(job.error || 'Erreur lors de l\'analyse');
+      }
+
+      // Status queued/running : attendre et réessayer
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+
+    } catch (error) {
+      // En cas d'erreur réseau, retry
+      if (error.isTimeout || error instanceof TypeError) {
+        console.warn(`⚠️  [BACKGROUND] Erreur réseau sur polling, retry...`);
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+        continue;
+      }
+
+      // Erreur définitive
+      console.error(`❌ [BACKGROUND] Erreur fatale sur job ${jobId}:`, error.message);
+      activeJobs.delete(jobId);
+      throw error;
+    }
+  }
+
+  // Timeout
+  console.error(`⏱️  [BACKGROUND] Timeout sur job ${jobId} après ${MAX_POLL_ATTEMPTS} tentatives`);
+  activeJobs.delete(jobId);
+  throw new Error('Timeout : l\'analyse a pris trop de temps');
+}
+
+/**
+ * Ajoute un rapport à l'historique (copie de la fonction du popup)
+ */
+async function addToReportsHistory(report) {
+  try {
+    const { reportsHistory = [] } = await chrome.storage.local.get(['reportsHistory']);
+
+    // Vérifier si le rapport existe déjà
+    const contentHash = report.metadata?.content_hash;
+    if (contentHash) {
+      const exists = reportsHistory.some(entry =>
+        entry.report?.metadata?.content_hash === contentHash &&
+        entry.report?.language === report.language
+      );
+
+      if (exists) {
+        console.log('📚 [BACKGROUND] Rapport déjà dans l\'historique, ignoré');
+        return;
+      }
+    }
+
+    // S'assurer que le rapport a une langue
+    if (!report.language && report.metadata?.output_language) {
+      report.language = report.metadata.output_language;
+    }
+
+    // Créer l'entrée
+    const historyEntry = {
+      id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+      report: report
+    };
+
+    reportsHistory.unshift(historyEntry);
+
+    // Limiter à 100 rapports
+    if (reportsHistory.length > 100) {
+      reportsHistory.splice(100);
+    }
+
+    await chrome.storage.local.set({ reportsHistory });
+    console.log(`📚 [BACKGROUND] Historique mis à jour (${reportsHistory.length} rapports)`);
+
+  } catch (error) {
+    console.error('[BACKGROUND] Erreur lors de l\'ajout à l\'historique:', error);
+  }
 }
 
 // Écouter les messages depuis le popup ou content scripts
@@ -26,6 +193,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log(`🔍 Analyse démarrée depuis ${source}`);
     console.log('📊 URL:', message.url);
     console.log('📊 Job ID:', message.jobId);
+
+    // Démarrer le polling en arrière-plan
+    const jobId = message.jobId;
+    const url = message.url;
+
+    if (!activeJobs.has(jobId)) {
+      activeJobs.set(jobId, { url, startedAt: Date.now() });
+      console.log(`🚀 [BACKGROUND] Lancement du polling pour job ${jobId}`);
+
+      // Polling asynchrone (ne bloque pas le message handler)
+      pollJobInBackground(jobId, url).catch(error => {
+        console.error(`❌ [BACKGROUND] Erreur polling job ${jobId}:`, error.message);
+      });
+    }
+
+    sendResponse({ received: true });
+    return true;
   }
 
   if (message.type === 'ANALYSIS_COMPLETE') {

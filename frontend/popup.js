@@ -134,6 +134,14 @@ async function handleAnalysis(forceNew = false) {
       source: report.metadata?.source
     });
 
+    console.log('  ✅ Analyse terminée');
+    console.log('  Métadonnées:', {
+      site: report.metadata?.site_name,
+      url: report.metadata?.analyzed_url,
+      date: report.metadata?.analyzed_at,
+      source: report.metadata?.source
+    });
+
     updateStatus('statusComplete', 'success');
 
     // Le rapport a déjà été ajouté à l'historique par background.js

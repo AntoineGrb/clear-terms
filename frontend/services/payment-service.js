@@ -12,19 +12,19 @@ const PRICING_PLANS = {
     name: 'Pack Standard',
     amount: 2,
     scans: 20,
-    priceId: 'prod_THb6dURyJ4RGHk' // À remplacer par votre vrai Price ID
+    priceId: 'prod_TInIFx7sfK2Olz'
   },
   comfort: {
     name: 'Pack Confort',
     amount: 5,
     scans: 100,
-    priceId: 'prod_THbiUvFCWCXXdr' // À remplacer par votre vrai Price ID
+    priceId: 'prod_TInILz7xwO1M3R'
   },
   pro: {
     name: 'Pack Pro',
     amount: 20,
     scans: 1000,
-    priceId: 'prod_THbiR3uxBsSDlQ' // À remplacer par votre vrai Price ID
+    priceId: 'prod_TInJHmzR1lpo06'
   }
 };
 

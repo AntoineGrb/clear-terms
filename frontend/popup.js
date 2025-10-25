@@ -123,8 +123,16 @@ async function handleAnalysis(forceNew = false) {
       jobId: job_id
     });
 
-    // Attendre le résultat via polling
-    const report = await pollJob(job_id);
+    // Attendre le résultat via polling (géré par le background)
+    const report = await waitForJobCompletion(job_id);
+
+    console.log('  ✅ Analyse terminée');
+    console.log('  Métadonnées:', {
+      site: report.metadata?.site_name,
+      url: report.metadata?.analyzed_url,
+      date: report.metadata?.analyzed_at,
+      source: report.metadata?.source
+    });
 
     console.log('  ✅ Analyse terminée');
     console.log('  Métadonnées:', {
@@ -136,8 +144,8 @@ async function handleAnalysis(forceNew = false) {
 
     updateStatus('statusComplete', 'success');
 
-    // Ajouter au reportsHistory
-    await addToReportsHistory(report);
+    // Le rapport a déjà été ajouté à l'historique par background.js
+    // (pas de duplication)
 
     // Logger le rapport complet dans le service worker
     chrome.runtime.sendMessage({
@@ -219,8 +227,8 @@ async function handleToastAnalysisRequest(url, content) {
       jobId: job_id
     });
 
-    // Attendre le résultat via polling
-    const report = await pollJob(job_id);
+    // Attendre le résultat via polling (géré par le background)
+    const report = await waitForJobCompletion(job_id);
 
     console.log('✅ Analyse terminée');
     console.log('Métadonnées:', {
@@ -232,8 +240,8 @@ async function handleToastAnalysisRequest(url, content) {
 
     updateStatus('statusComplete', 'success');
 
-    // Ajouter au reportsHistory
-    await addToReportsHistory(report);
+    // Le rapport a déjà été ajouté à l'historique par background.js
+    // (pas de duplication)
 
     // Logger le rapport complet dans le service worker
     chrome.runtime.sendMessage({
@@ -290,12 +298,42 @@ function showHistoryFoundStatus(url, content, userLanguage) {
 }
 
 /**
+ * Attend la complétion d'un job en écoutant les messages du background
+ * Cette fonction permet au background de continuer même si la popup se ferme
+ */
+async function waitForJobCompletion(jobId) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Timeout : l\'analyse a pris trop de temps'));
+    }, 300000); // 5 minutes
+
+    const messageListener = (message) => {
+      if (message.type === 'JOB_COMPLETE' && message.jobId === jobId) {
+        cleanup();
+        resolve(message.report);
+      } else if (message.type === 'JOB_ERROR' && message.jobId === jobId) {
+        cleanup();
+        reject(new Error(message.error || 'Erreur lors de l\'analyse'));
+      }
+    };
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      chrome.runtime.onMessage.removeListener(messageListener);
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+  });
+}
+
+/**
  * Continue le polling d'un job depuis la popup
  */
 async function continuePollingFromPopup(jobId) {
   const button = document.getElementById('scanButton');
   try {
-    const report = await pollJob(jobId);
+    const report = await waitForJobCompletion(jobId);
     updateStatus('statusComplete', 'success');
     displayReport(report);
   } catch (error) {

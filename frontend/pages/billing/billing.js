@@ -5,17 +5,17 @@
 // Configuration des plans avec leurs Price IDs Stripe
 const PRICING_CONFIG = {
   standard: {
-    priceId: 'price_1SL1umGUxG7vB514guSE0Pwr', // À remplacer par votre Price ID Stripe
+    priceId: 'price_1SMBhZGs0tIBlmFtRGTrzWDz',
     amount: 2,
     scans: 20
   },
   comfort: {
-    priceId: 'price_1SL2UnGUxG7vB5143BG6HBws', // À remplacer par votre Price ID Stripe
+    priceId: 'price_1SMBiOGs0tIBlmFt4TRGGEXS',
     amount: 5,
     scans: 100
   },
   pro: {
-    priceId: 'price_1SL2VGGUxG7vB514rLLaBEsj', // À remplacer par votre Price ID Stripe
+    priceId: 'price_1SMBiwGs0tIBlmFtGHHMCJfb',
     amount: 20,
     scans: 1000
   }

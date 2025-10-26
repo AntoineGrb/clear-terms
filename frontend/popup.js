@@ -134,14 +134,6 @@ async function handleAnalysis(forceNew = false) {
       source: report.metadata?.source
     });
 
-    console.log('  ✅ Analyse terminée');
-    console.log('  Métadonnées:', {
-      site: report.metadata?.site_name,
-      url: report.metadata?.analyzed_url,
-      date: report.metadata?.analyzed_at,
-      source: report.metadata?.source
-    });
-
     updateStatus('statusComplete', 'success');
 
     // Le rapport a déjà été ajouté à l'historique par background.js
@@ -457,7 +449,7 @@ async function loadAndDisplayCredits() {
   try {
     // Afficher la valeur en cache (mise à jour après chaque scan/paiement)
     const cachedResult = await chrome.storage.sync.get(['remainingScans']);
-    const cachedRemaining = cachedResult.remainingScans !== undefined ? cachedResult.remainingScans : 20;
+    const cachedRemaining = cachedResult.remainingScans !== undefined ? cachedResult.remainingScans : 10;
     document.getElementById('remainingScans').textContent = cachedRemaining;
 
     console.log('💰 [POPUP] Crédits affichés depuis le cache:', cachedRemaining);

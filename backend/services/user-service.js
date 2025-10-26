@@ -1,7 +1,7 @@
 const dbService = require('./db-service');
 const metricsStore = require('../utils/metrics-store');
 
-const INITIAL_CREDITS = 20;
+const INITIAL_CREDITS = 10;
 
 /**
  * Service de gestion des utilisateurs et de leurs crédits
@@ -289,9 +289,9 @@ class UserService {
   _calculateScansFromAmount(amount) {
     // Mapping des montants vers les nombres de scans
     const pricingMap = {
-      2: 20,    // Pack Standard: 2€ = 20 scans
-      5: 100,   // Pack Confort: 5€ = 100 scans
-      20: 1000  // Pack Pro: 20€ = 1000 scans
+      2: 10,    // Pack Standard: 2€ = 10 scans
+      5: 30,   // Pack Confort: 5€ = 30 scans
+      10: 100  // Pack Pro: 10€ = 100 scans
     };
 
     return pricingMap[amount] || 0;

@@ -19,7 +19,7 @@ function isValidUUID(uuid) {
  * Enregistrer un nouvel utilisateur ou récupérer un utilisateur existant
  *
  * Body: { deviceId: "uuid-v4" }
- * Response: { jwt: "token", remainingScans: 20, createdAt: "date" }
+ * Response: { jwt: "token", remainingScans:10, createdAt: "date" }
  */
 router.post('/register', async (req, res) => {
   try {
@@ -46,7 +46,7 @@ router.post('/register', async (req, res) => {
     let user = await userService.getUser(deviceId);
 
     if (!user) {
-      // Créer un nouvel utilisateur avec 20 crédits gratuits
+      // Créer un nouvel utilisateur avec 10 crédits gratuits
       console.log(`✨ [AUTH] Creating new user: ${deviceId}`);
       user = await userService.createUser(deviceId);
       console.log(`✅ [AUTH] New user registered: ${deviceId} with ${user.remainingScans} scans`);

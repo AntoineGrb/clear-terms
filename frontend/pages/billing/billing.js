@@ -7,17 +7,17 @@ const PRICING_CONFIG = {
   standard: {
     priceId: 'price_1SMBhZGs0tIBlmFtRGTrzWDz',
     amount: 2,
-    scans: 20
+    scans: 10
   },
   comfort: {
     priceId: 'price_1SMBiOGs0tIBlmFt4TRGGEXS',
     amount: 5,
-    scans: 100
+    scans: 30
   },
   pro: {
     priceId: 'price_1SMBiwGs0tIBlmFtGHHMCJfb',
-    amount: 20,
-    scans: 1000
+    amount: 10,
+    scans: 100
   }
 };
 
@@ -51,7 +51,7 @@ async function loadRemainingScans() {
   try {
     // Utiliser storage.sync pour être cohérent avec le reste de l'app
     const result = await chrome.storage.sync.get(['remainingScans']);
-    const remaining = result.remainingScans !== undefined ? result.remainingScans : 20;
+    const remaining = result.remainingScans !== undefined ? result.remainingScans : 10;
 
     document.getElementById('remainingScans').textContent = remaining;
 

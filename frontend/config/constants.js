@@ -18,7 +18,7 @@ const DEFAULT_TOAST_DURATION = 30000; // 30 secondes
 const TOAST_ACTION_MAX_AGE = 5000; // 5 secondes max pour action pending
 
 // Crédits par défaut
-const DEFAULT_CREDITS = 20;
+const DEFAULT_CREDITS = 10;
 
 // Export global (compatible avec script tags)
 if (typeof window !== 'undefined') {

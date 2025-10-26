@@ -121,7 +121,7 @@ const translations = {
     billingFeature3: "Historique de vos analyses",
     billingFeature4: "Détection automatique avec toast",
     billingFeature5: "Export CSV/JSON de vos rapports",
-    billingIntroNote: "Les 20 premiers scans étaient gratuits pour découvrir l'outil. Les crédits permettent d'amortir les coûts de fonctionnement de l'intelligence artificielle. Merci de votre confiance !",
+    billingIntroNote: "Les 10 premiers scans étaient gratuits pour découvrir l'outil. Les crédits permettent d'amortir les coûts de fonctionnement de l'intelligence artificielle. Merci de votre confiance !",
 
     billingPlanStandardTitle: "Pack Standard",
     billingPlanStandardDesc: "Pour une utilisation ponctuelle",
@@ -180,7 +180,7 @@ const translations = {
       limitationsText: "Clear Terms n'est pas un conseil juridique et ne remplace pas l'avis d'un avocat qualifié. Les analyses peuvent contenir des erreurs ou des imprécisions. Consultez toujours le texte original et, si nécessaire, un professionnel du droit.",
 
       pricingTitle: "Modèle économique",
-      pricingText1: "Les 20 premières analyses sont gratuites pour vous permettre de découvrir l'outil.",
+      pricingText1: "Les 10 premières analyses sont gratuites pour vous permettre de découvrir l'outil.",
       pricingText2: "Au-delà, vous pouvez acheter des crédits d'analyse selon vos besoins. Ce modèle nous permet de maintenir un service de qualité tout en optimisant les coûts d'infrastructure IA.",
       pricingText3: "Les analyses déjà effectuées et historisées ne génèrent pas de coûts supplémentaires."
     },
@@ -250,7 +250,7 @@ const translations = {
       section11Text: "Nous pouvons mettre à jour ces Conditions de Service de temps à autre. Si nous apportons des modifications importantes, nous vous en informerons via l'extension avec un délai de préavis de 30 jours. Si vous n'acceptez pas les nouvelles conditions, vous pouvez cesser d'utiliser l'extension en la désinstallant avant l'entrée en vigueur des modifications. L'utilisation continue du service après ce délai constitue votre acceptation des nouvelles conditions.",
 
       section12Title: "12. Paiement et crédits",
-      section12Intro: "Clear Terms fonctionne sur un système de crédits d'analyse. Les 20 premières analyses sont gratuites pour découvrir le service.",
+      section12Intro: "Clear Terms fonctionne sur un système de crédits d'analyse. Les 10 premières analyses sont gratuites pour découvrir le service.",
       section12SubTitle1: "Achat de crédits",
       section12Item1: "Les crédits sont achetés via notre système de paiement sécurisé et sont associés à votre navigateur.",
       section12Item2: "Les crédits n'expirent pas et peuvent être utilisés à votre rythme.",
@@ -391,7 +391,7 @@ const translations = {
     billingFeature3: "History of your analyses",
     billingFeature4: "Automatic detection with toast",
     billingFeature5: "CSV/JSON export of your reports",
-    billingIntroNote: "The first 20 scans were free to explore the tool. The credits help cover the running costs of the artificial intelligence. Thank you for your trust!",
+    billingIntroNote: "The first 10 scans were free to explore the tool. The credits help cover the running costs of the artificial intelligence. Thank you for your trust!",
 
     billingPlanStandardTitle: "Standard Pack",
     billingPlanStandardDesc: "For occasional use",
@@ -450,7 +450,7 @@ const translations = {
       limitationsText: "Clear Terms is not legal advice and does not replace the opinion of a qualified attorney. Analyses may contain errors or inaccuracies. Always consult the original text and, if necessary, a legal professional.",
 
       pricingTitle: "Business Model",
-      pricingText1: "The first 20 analyses are free to let you discover the tool.",
+      pricingText1: "The first 10 analyses are free to let you discover the tool.",
       pricingText2: "Beyond that, you can buy analysis credits according to your needs. This model allows us to maintain a quality service while optimizing AI infrastructure costs.",
       pricingText3: "Analyses already performed and historized do not incur additional costs."
     },
@@ -520,7 +520,7 @@ const translations = {
       section11Text: "We may update these Terms of Service from time to time. If we make material changes, we will notify you via the extension with a 30-day notice period. If you do not accept the new terms, you may stop using the extension by uninstalling it before the changes take effect. Continued use of the service after this period constitutes your acceptance of the new terms.",
 
       section12Title: "12. Payment and Credits",
-      section12Intro: "Clear Terms operates on an analysis credit system. The first 20 analyses are free to discover the service.",
+      section12Intro: "Clear Terms operates on an analysis credit system. The first 10 analyses are free to discover the service.",
       section12SubTitle1: "Credit Purchase",
       section12Item1: "Credits are purchased through our secure payment system and are associated with your browser.",
       section12Item2: "Credits never expire and can be used at your own pace.",

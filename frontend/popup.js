@@ -449,7 +449,7 @@ async function loadAndDisplayCredits() {
   try {
     // Afficher la valeur en cache (mise à jour après chaque scan/paiement)
     const cachedResult = await chrome.storage.sync.get(['remainingScans']);
-    const cachedRemaining = cachedResult.remainingScans !== undefined ? cachedResult.remainingScans : 20;
+    const cachedRemaining = cachedResult.remainingScans !== undefined ? cachedResult.remainingScans : 10;
     document.getElementById('remainingScans').textContent = cachedRemaining;
 
     console.log('💰 [POPUP] Crédits affichés depuis le cache:', cachedRemaining);

@@ -41,4 +41,7 @@ backend/schema.json
 # Docs
 docs
 
+#
+*.zip
+
 

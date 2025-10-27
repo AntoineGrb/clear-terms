@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Clear Terms",
   "version": "1.1.0",
-  "description": "Analysez automatiquement les CGU et Politiques de Confidentialité avec l'IA",
+  "description": "Summarize Terms & Privacy pages in seconds. Get a clear A–E score and key risks before you accept anything.",
   "icons": {
     "16": "icon/icon16.png",
     "32": "icon/icon32.png",
@@ -42,14 +42,12 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:3000/*",
-    "https://clear-terms-staging.onrender.com/*",
     "https://clear-terms.onrender.com/*"
   ],
   "web_accessible_resources": [
     {
       "resources": ["icon/*.png"],
-      "matches": ["<all_urls>"]
+      "matches": ["http://*/*", "https://*/*"]
     }
   ],
   "content_security_policy": {

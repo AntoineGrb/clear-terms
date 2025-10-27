@@ -1,0 +1,30 @@
+{
+  "startTime": "2025-10-26T11:50:08.959Z",
+  "lastResetTime": "2025-10-26T11:50:08.961Z",
+  "requests": {
+    "total": 29,
+    "scan": 5,
+    "jobs": 22,
+    "health": 0,
+    "auth": 0,
+    "payments": 0,
+    "metrics": 0,
+    "other": 2
+  },
+  "database": {
+    "queries": 12,
+    "usersCreated": 0,
+    "reads": 7,
+    "writes": 5
+  },
+  "scans": {
+    "consumed": 5,
+    "fromCache": 0,
+    "total": 5
+  },
+  "performance": {
+    "totalResponseTime": 373,
+    "requestCount": 29,
+    "errors": 0
+  }
+}

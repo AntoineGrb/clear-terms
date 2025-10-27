@@ -105,8 +105,14 @@ function isLikelyTermsPage() {
  * @returns {Object} { valid: boolean, reason?: string, count?: number }
  */
 function validateTermsPage(content) {
+  console.log('🔍 [VALIDATION] Début de la validation');
+  console.log('  - Longueur du contenu à valider:', content?.length || 0);
+
   // Critère 1: Longueur minimale
   if (content.length < VALIDATION_CRITERIA.minLength) {
+    console.log('  ❌ VALIDATION ÉCHOUÉE: Contenu trop court');
+    console.log('    - Longueur:', content.length);
+    console.log('    - Minimum requis:', VALIDATION_CRITERIA.minLength);
     return {
       valid: false,
       reason: 'content_too_short',
@@ -115,8 +121,14 @@ function validateTermsPage(content) {
   }
 
   // Critère 2: Titre fort dans le champ lexical
-  const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4'));
+  const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
   const allKeywords = [...KEYWORDS_LIGHT.fr, ...KEYWORDS_LIGHT.en];
+
+  console.log('  - Titres détectés:', headings.length);
+  headings.forEach((h, i) => {
+    const tagName = h.tagName;
+    console.log(`    ${tagName}: "${h.textContent.substring(0, 50)}..."`);
+  });
 
   const hasStrongTitle = headings.some(h => {
     const text = h.textContent.toLowerCase();
@@ -124,8 +136,10 @@ function validateTermsPage(content) {
   });
 
   if (!hasStrongTitle) {
+    console.log('  ❌ VALIDATION ÉCHOUÉE: Pas de titre fort');
     return { valid: false, reason: 'no_strong_title' };
   }
+  console.log('  ✅ Titre fort détecté');
 
   // Critère 3: Occurrences de mots-clés contractuels
   const contentLower = content.toLowerCase();
@@ -134,16 +148,25 @@ function validateTermsPage(content) {
     ...VALIDATION_CRITERIA.contractualKeywords.en
   ];
 
+  console.log('  - Recherche de mots-clés contractuels...');
   let keywordCount = 0;
+  const foundKeywords = [];
+
   allContractualKeywords.forEach(keyword => {
     const regex = new RegExp(`\\b${keyword.replace(/'/g, "['']?")}\\b`, 'gi');
     const matches = contentLower.match(regex);
     if (matches) {
       keywordCount += matches.length;
+      foundKeywords.push(`"${keyword}": ${matches.length}x`);
     }
   });
 
+  console.log('  - Mots-clés trouvés:', foundKeywords.join(', '));
+  console.log('  - Total occurrences:', keywordCount);
+  console.log('  - Minimum requis:', VALIDATION_CRITERIA.minKeywordOccurrences);
+
   if (keywordCount < VALIDATION_CRITERIA.minKeywordOccurrences) {
+    console.log('  ❌ VALIDATION ÉCHOUÉE: Pas assez de mots-clés contractuels');
     return {
       valid: false,
       reason: 'insufficient_contractual_keywords',
@@ -151,5 +174,6 @@ function validateTermsPage(content) {
     };
   }
 
+  console.log('  ✅ VALIDATION RÉUSSIE');
   return { valid: true, keywordCount };
 }

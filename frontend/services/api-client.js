@@ -18,9 +18,17 @@ async function extractPageContent() {
 
   // Demander au content script d'extraire le contenu
   try {
+    console.log('🔍 [EXTRACT] Envoi de la demande d\'extraction au content-script');
     const response = await chrome.tabs.sendMessage(tab.id, {
       type: 'EXTRACT_CONTENT'
     });
+
+    console.log('📄 [EXTRACT] Contenu reçu:');
+    console.log('  - URL:', response.url);
+    console.log('  - Longueur du contenu:', response.content?.length || 0);
+    console.log('  - Premiers 200 caractères:', response.content?.substring(0, 200));
+    console.log('  - Derniers 200 caractères:', response.content?.substring(response.content.length - 200));
+
     return response;
   } catch (error) {
     // Si le content script n'est pas chargé

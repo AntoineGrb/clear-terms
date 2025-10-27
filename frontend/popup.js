@@ -29,16 +29,30 @@ async function handleAnalysis(forceNew = false) {
       throw new Error('Le contenu de la page est trop court pour être analysé');
     }
 
+    console.log('📋 [POPUP] Contenu extrait:');
+    console.log('  - URL:', url);
+    console.log('  - Longueur:', text?.length || 0);
+    console.log('  - Début:', text?.substring(0, 200));
+
     // VALIDATION : Vérifier que c'est bien des CGU
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      console.log('🔍 [POPUP] Envoi de la demande de validation...');
 
       const validation = await chrome.tabs.sendMessage(tab.id, {
         type: 'VALIDATE_CONTENT',
         content: text
       });
 
+      console.log('✅ [POPUP] Résultat de validation:', validation);
+      console.log('  - Valide:', validation.valid);
+      console.log('  - Raison:', validation.reason);
+      console.log('  - Compteur:', validation.keywordCount || validation.count);
+
       if (!validation.valid) {
+        console.warn('❌ [POPUP] Validation échouée - Analyse bloquée');
+        console.warn('  - Raison:', validation.reason);
         // Message d'erreur simplifié pour l'utilisateur
         const lang = await loadLanguagePreference();
         const message = i18n.t('notCGUPage', lang);
@@ -48,7 +62,10 @@ async function handleAnalysis(forceNew = false) {
         return;
       }
 
+      console.log('✅ [POPUP] Validation réussie - Analyse autorisée');
+
     } catch (validationError) {
+      console.warn('⚠️ [POPUP] Erreur lors de la validation:', validationError);
       // Continuer quand même l'analyse en cas d'erreur de validation
     }
 

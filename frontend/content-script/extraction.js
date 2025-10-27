@@ -9,6 +9,25 @@
  */
 function extractCleanContent() {
   try {
+    console.log('🔍 [CONTENT-SCRIPT] Début extraction du contenu');
+    console.log('  - Document visible:', document.visibilityState);
+    console.log('  - Body présent:', !!document.body);
+
+    // Détecter les modales AVANT extraction
+    const modals = document.querySelectorAll('[role="dialog"], .modal, [class*="modal"], [class*="Modal"]');
+    console.log('  - Modales détectées:', modals.length);
+    if (modals.length > 0) {
+      modals.forEach((modal, index) => {
+        const modalText = modal.innerText || modal.textContent || '';
+        console.log(`    Modal ${index + 1}:`, {
+          visible: modal.offsetParent !== null,
+          display: window.getComputedStyle(modal).display,
+          longueurTexte: modalText.length,
+          aperçu: modalText.substring(0, 100)
+        });
+      });
+    }
+
     // Clone le document
     const clone = document.cloneNode(true);
 
@@ -20,34 +39,33 @@ function extractCleanContent() {
       };
     }
 
-    // Supprimer les éléments inutiles et dynamiques
+    // Supprimer les éléments inutiles SAUF les modales qui peuvent contenir des CGU
     const elementsToRemove = clone.querySelectorAll(`
       script,
       style,
-      nav,
-      header,
-      footer,
-      aside,
-      [role="dialog"],
-      [role="banner"],
-      [class*="cookie"],
-      [class*="Cookie"],
-      [id*="cookie"],
-      [id*="Cookie"],
-      [class*="consent"],
-      [class*="Consent"],
-      [id*="consent"],
-      [class*="banner"],
-      [class*="Banner"],
-      [class*="popup"],
-      [class*="Popup"],
-      [class*="modal"],
-      [class*="Modal"],
-      [aria-label*="cookie" i],
-      [aria-label*="consent" i],
-      [aria-label*="privacy banner" i]
+      nav:not([role="dialog"]),
+      header:not([role="dialog"]),
+      footer:not([role="dialog"]),
+      aside:not([role="dialog"]),
+      [role="banner"]
     `);
     elementsToRemove.forEach(el => el.remove());
+
+    // Supprimer UNIQUEMENT les bannières de cookies/consent (pas les modales de CGU)
+    const cookieBanners = clone.querySelectorAll(`
+      [class*="cookie"]:not([role="dialog"]),
+      [class*="Cookie"]:not([role="dialog"]),
+      [id*="cookie"]:not([role="dialog"]),
+      [id*="Cookie"]:not([role="dialog"]),
+      [class*="consent"]:not([role="dialog"]),
+      [class*="Consent"]:not([role="dialog"]),
+      [id*="consent"]:not([role="dialog"]),
+      [class*="banner"]:not([role="dialog"]),
+      [class*="Banner"]:not([role="dialog"]),
+      [aria-label*="cookie" i]:not([role="dialog"]),
+      [aria-label*="consent" i]:not([role="dialog"])
+    `);
+    cookieBanners.forEach(el => el.remove());
 
     // Vérifier à nouveau que clone.body existe après les suppressions
     if (!clone.body) {
@@ -68,6 +86,11 @@ function extractCleanContent() {
     if (cleanedText.length > MAX_CONTENT_LENGTH) {
       cleanedText = cleanedText.substring(0, MAX_CONTENT_LENGTH);
     }
+
+    console.log('📝 [CONTENT-SCRIPT] Texte extrait:');
+    console.log('  - Longueur totale:', cleanedText.length);
+    console.log('  - Nombre de mots:', cleanedText.split(/\s+/).length);
+    console.log('  - Aperçu (300 premiers caractères):', cleanedText.substring(0, 300));
 
     return {
       text: cleanedText,

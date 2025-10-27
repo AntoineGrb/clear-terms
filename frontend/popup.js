@@ -58,7 +58,8 @@ async function handleAnalysis(forceNew = false) {
     if (!forceNew) {
       updateStatus('statusSending', 'loading');
       const historyReport = await getReportFromHistory(url, userLanguage);
-      
+
+      if (historyReport) {
         // Afficher le rapport
         displayReport(historyReport);
 
@@ -68,13 +69,10 @@ async function handleAnalysis(forceNew = false) {
         button.disabled = false;
         button.classList.remove('opacity-50', 'cursor-not-allowed');
         return;
-      } else {
-        // Pas de rapport dans l'historique
       }
+      // Pas de rapport dans l'historique, continuer l'analyse
     } else {
-      // Relance forcée : ignorer l'historique
-
-      // Nettoyer l'historique pour cette URL afin d'éviter les divergences
+      // Relance forcée : nettoyer l'historique pour cette URL
       await hashUtils.removeReportsByUrl(url);
     }
 

@@ -60,12 +60,6 @@ function getBackendURL() {
       const hasUpdateUrl = 'update_url' in manifest;
       const isDevelopment = !hasUpdateUrl;
 
-      console.log('🔍 [CONFIG] Détection environnement:', {
-        hasUpdateUrl,
-        isDevelopment,
-        manifestKeys: Object.keys(manifest)
-      });
-
       if (isDevelopment) {
         mode = 'LOCAL (auto-détecté)';
         url = CONFIG.LOCAL_URL;
@@ -74,7 +68,6 @@ function getBackendURL() {
         url = CONFIG.PROD_URL;
       }
     } catch (error) {
-      console.log('⚠️ [CONFIG] Erreur détection, fallback LOCAL:', error.message);
       mode = 'LOCAL (fallback)';
       url = CONFIG.LOCAL_URL;
     }

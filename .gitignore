@@ -1,6 +1,8 @@
 # Environment variables
 backend/.env
 .env
+frontend.pem
+frontend.crx
 
 # Database files
 backend/db/users.json
@@ -39,5 +41,4 @@ backend/schema.json
 # Docs
 docs
 
-# Landing page (deployed separately)
-pages/landing/
+

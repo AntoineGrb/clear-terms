@@ -12,7 +12,7 @@ const CONFIG = {
   // Mode de fonctionnement (une seule des options à true)
   FORCE_LOCAL: false, 
   FORCE_STAGING: false,
-  FORCE_PROD: true,  
+  FORCE_PROD: false,  
   // Si les 3 sont false = auto-détection (dev/prod)
 
   // Paramètres polling

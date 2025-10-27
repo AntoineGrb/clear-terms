@@ -12,7 +12,6 @@
 function createToast(type, url, data) {
   // Vérifier si le toast existe déjà
   if (document.getElementById('clear-terms-toast-container')) {
-    console.log('[Clear Terms] Toast déjà affiché');
     return;
   }
 

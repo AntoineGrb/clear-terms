@@ -48,7 +48,6 @@ async function ensureDataDir() {
     await fs.access(dataDir);
   } catch (error) {
     await fs.mkdir(dataDir, { recursive: true });
-    console.log('📁 Dossier backend/data/ créé');
   }
 }
 

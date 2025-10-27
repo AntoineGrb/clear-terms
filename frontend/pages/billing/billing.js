@@ -61,7 +61,7 @@ async function loadRemainingScans() {
         const newValue = changes.remainingScans.newValue;
         if (newValue !== undefined) {
           document.getElementById('remainingScans').textContent = newValue;
-          console.log('[BILLING] Crédits mis à jour:', newValue);
+
         }
       }
     });
@@ -89,7 +89,6 @@ async function handlePurchase(event) {
 
   // Vérifier que le Price ID a été configuré
   if (!priceId || priceId === 'price_XXXXXXXXXX') {
-    console.error('Price ID Stripe non configuré');
     alert('Le système de paiement n\'est pas encore configuré. Veuillez contacter le support.');
     return;
   }

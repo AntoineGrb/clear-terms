@@ -18,7 +18,6 @@ async function handleAnalysis(forceNew = false) {
   let currentUrl = 'unknown';
 
   try {
-    console.log('🚀 ==================== Demande d\'analyse depuis le popup ====================')
     updateStatus('statusExtracting', 'loading');
 
     // Extraire le contenu
@@ -55,24 +54,11 @@ async function handleAnalysis(forceNew = false) {
     // Récupérer la préférence de langue
     const userLanguage = await loadLanguagePreference();
 
-    // --- Recherche dans l'historique ---
-    console.log('\n[HISTORIQUE] Recherche...');
-    console.log('  URL:', url);
-    console.log('  Langue:', userLanguage);
-
     // Vérifier d'abord l'historique par URL (sauf si forceNew = true)
     if (!forceNew) {
       updateStatus('statusSending', 'loading');
       const historyReport = await getReportFromHistory(url, userLanguage);
-
-      if (historyReport) {
-        console.log('  ✅ Rapport trouvé');
-        console.log('  Métadonnées:', {
-          site: historyReport.metadata?.site_name,
-          url: historyReport.metadata?.analyzed_url,
-          date: historyReport.metadata?.analyzed_at
-        });
-
+      
         // Afficher le rapport
         displayReport(historyReport);
 
@@ -83,20 +69,14 @@ async function handleAnalysis(forceNew = false) {
         button.classList.remove('opacity-50', 'cursor-not-allowed');
         return;
       } else {
-        console.log('  ❌ Aucun rapport trouvé');
+        // Pas de rapport dans l'historique
       }
     } else {
-      console.log('  ⏭️ Recherche ignorée (relance forcée)');
+      // Relance forcée : ignorer l'historique
 
       // Nettoyer l'historique pour cette URL afin d'éviter les divergences
-      console.log('  🗑️ Nettoyage de l\'historique pour cette URL...');
       await hashUtils.removeReportsByUrl(url);
     }
-
-    // Pas de rapport dans l'historique OU relance forcée : lancer une analyse
-    console.log('\n[ANALYSE] Démarrage...');
-    console.log('  Source: POPUP');
-    console.log('  URL:', url);
 
     // Vérifier les crédits AVANT de lancer l'analyse
     const hasCredits = await authService.hasCredits();
@@ -115,7 +95,6 @@ async function handleAnalysis(forceNew = false) {
     // Lancer l'analyse (cache ou IA)
     const scanResult = await performAnalysis(url, text, userLanguage);
     const { job_id } = scanResult;
-    console.log('  Job ID:', job_id);
 
     chrome.runtime.sendMessage({
       type: 'ANALYSIS_STARTED',
@@ -125,15 +104,6 @@ async function handleAnalysis(forceNew = false) {
 
     // Attendre le résultat via polling (géré par le background)
     const report = await waitForJobCompletion(job_id);
-
-    console.log('  ✅ Analyse terminée');
-    console.log('  Métadonnées:', {
-      site: report.metadata?.site_name,
-      url: report.metadata?.analyzed_url,
-      date: report.metadata?.analyzed_at,
-      source: report.metadata?.source
-    });
-
     updateStatus('statusComplete', 'success');
 
     // Le rapport a déjà été ajouté à l'historique par background.js
@@ -181,8 +151,6 @@ async function handleToastAnalysisRequest(url, content) {
   const button = document.getElementById('scanButton');
 
   try {
-    console.log('\n==================== ANALYSE DEPUIS TOAST ====================');
-    console.log('URL:', url);
 
     // Désactiver le bouton pendant l'analyse
     button.disabled = true;
@@ -210,7 +178,6 @@ async function handleToastAnalysisRequest(url, content) {
     // Lancer l'analyse (cache ou IA)
     const scanResult = await performAnalysis(url, content, userLanguage);
     const { job_id } = scanResult;
-    console.log('Job ID:', job_id);
 
     chrome.runtime.sendMessage({
       type: 'ANALYSIS_STARTED',
@@ -221,15 +188,6 @@ async function handleToastAnalysisRequest(url, content) {
 
     // Attendre le résultat via polling (géré par le background)
     const report = await waitForJobCompletion(job_id);
-
-    console.log('✅ Analyse terminée');
-    console.log('Métadonnées:', {
-      site: report.metadata?.site_name,
-      url: report.metadata?.analyzed_url,
-      date: report.metadata?.analyzed_at,
-      source: report.metadata?.source
-    });
-
     updateStatus('statusComplete', 'success');
 
     // Le rapport a déjà été ajouté à l'historique par background.js
@@ -355,7 +313,6 @@ async function addToReportsHistory(report) {
       );
 
       if (exists) {
-        console.log('📚 [HISTORY] Rapport déjà présent dans l\'historique, ignoré');
         return;
       }
     }
@@ -420,7 +377,6 @@ chrome.storage.local.get(['lastReport', 'pendingToastAction'], async (result) =>
     // Si une action depuis le toast est en attente, ne pas charger le lastReport
     // (le rapport sera affiché par le code de gestion de pendingToastAction)
     if (result.pendingToastAction) {
-      console.log('[POPUP] Action toast en attente, skip du chargement automatique du lastReport');
       return;
     }
 
@@ -451,8 +407,6 @@ async function loadAndDisplayCredits() {
     const cachedResult = await chrome.storage.sync.get(['remainingScans']);
     const cachedRemaining = cachedResult.remainingScans !== undefined ? cachedResult.remainingScans : 10;
     document.getElementById('remainingScans').textContent = cachedRemaining;
-
-    console.log('💰 [POPUP] Crédits affichés depuis le cache:', cachedRemaining);
   } catch (error) {
     console.error('[POPUP] Erreur affichage crédits:', error);
   }
@@ -503,15 +457,13 @@ async function checkAndContinueAutoAnalysis(result) {
     // Vérifier que l'action n'est pas trop vieille (max 5 secondes)
     const age = Date.now() - pendingToastAction.timestamp;
     if (age < 5000) {
-      console.log('📋 [POPUP] Action en attente depuis le toast:', pendingToastAction.type);
-
       if (pendingToastAction.type === 'DISPLAY_REPORT') {
         displayReport(pendingToastAction.report);
       } else if (pendingToastAction.type === 'PERFORM_ANALYSIS') {
         await handleToastAnalysisRequest(pendingToastAction.url, pendingToastAction.content);
       }
     } else {
-      console.warn('⚠️ [POPUP] Action trop vieille, ignorée (age: ' + age + 'ms)');
+      // Action trop vieille, l'ignorer
     }
 
     // Nettoyer l'action en attente

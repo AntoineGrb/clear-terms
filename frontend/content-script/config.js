@@ -7,8 +7,7 @@
  */
 const KEYWORDS_LIGHT = {
   fr: [
-    'conditions générales',
-    'conditions d\'utilisation',
+    'conditions',
     'politique de confidentialité',
     'mentions légales',
     'cgu',
@@ -18,12 +17,9 @@ const KEYWORDS_LIGHT = {
     'termes et conditions',
     'accord utilisateur',
     'contrat de service',
-    'conditions de service'
   ],
   en: [
     'terms',
-    'terms of service',
-    'terms of use',
     'privacy policy',
     'terms and conditions',
     'user agreement',
@@ -33,6 +29,7 @@ const KEYWORDS_LIGHT = {
     'service agreement',
     'user terms',
     'data policy',
+    'legal'
   ]
 };
 

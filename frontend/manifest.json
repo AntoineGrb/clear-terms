@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Clear Terms",
+  "name": "__MSG_extensionName__",
   "version": "1.1.0",
-  "description": "Summarize Terms & Privacy pages in seconds. Get a clear A–E score and key risks before you accept anything.",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
   "icons": {
     "16": "icon/icon16.png",
     "32": "icon/icon32.png",
@@ -37,9 +38,7 @@
     }
   ],
   "permissions": [
-    "activeTab",
-    "storage",
-    "scripting"
+    "storage"
   ],
   "host_permissions": [
     "https://clear-terms.onrender.com/*"
